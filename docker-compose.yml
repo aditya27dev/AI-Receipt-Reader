@@ -1,0 +1,24 @@
+version: "3.8"
+
+services:
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: receipt-chromadb
+    ports:
+      - "8000:8000"
+    volumes:
+      - chromadb-data:/chroma/chroma
+    environment:
+      - ANONYMIZED_TELEMETRY=False
+      - ALLOW_RESET=True
+    networks:
+      - receipt-network
+    restart: unless-stopped
+
+volumes:
+  chromadb-data:
+    driver: local
+
+networks:
+  receipt-network:
+    driver: bridge
