@@ -300,7 +300,9 @@ For commercial licensing inquiries, please contact the author.
 ## 👨‍💻 Author
 
 **Aditya Batra**  
+
 📧 Contact: adityabatra277@gmail.com  
+🔗 LinkedIn: https://www.linkedin.com/in/aditya-batra/  
 🐙 GitHub: [@aditya27dev](https://github.com/aditya27dev)
 
 ### Skills Demonstrated
