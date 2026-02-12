@@ -254,7 +254,6 @@ Make sure to:
 ## 📚 Documentation
 
 - **[USER-GUIDE.md](USER-GUIDE.md)** - Complete user guide with app flow and tutorials
-- **[CHROMADB.md](CHROMADB.md)** - ChromaDB setup and vector database usage
 - **[SETUP.md](SETUP.md)** - Detailed installation and configuration guide
 
 ## 🧪 Testing Locally
@@ -301,9 +300,8 @@ For commercial licensing inquiries, please contact the author.
 ## 👨‍💻 Author
 
 **Aditya Batra**  
-📧 Contact: [Your Email]  
-🔗 LinkedIn: [Your LinkedIn]  
-🐙 GitHub: [Your GitHub]
+📧 Contact: adityabatra277@gmail.com  
+🐙 GitHub: [@aditya27dev](https://github.com/aditya27dev)
 
 ### Skills Demonstrated
 
