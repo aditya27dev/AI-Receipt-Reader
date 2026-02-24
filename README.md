@@ -134,5 +134,5 @@ See [LICENSE](LICENSE) for details.
 
 ---
 
-**Built by Aditya Batra** • [LinkedIn](#) • [GitHub](#)
+**Built by Aditya Batra** • [LinkedIn](https://www.linkedin.com/in/aditya-batra/) • [GitHub](https://github.com/aditya27dev)
 _Demonstrating advanced AI integration, vector databases, and modern full-stack development_
