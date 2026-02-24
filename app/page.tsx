@@ -1,32 +1,39 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { ReceiptUploader } from '@/components/receipt-uploader';
-import { ReceiptDisplay } from '@/components/receipt-display';
-import { SpendingSummary } from '@/components/spending-summary';
-import { ReceiptHistory } from '@/components/receipt-history';
-import { BankStatementUploader } from '@/components/bank-statement-uploader';
-import { TransactionHistory } from '@/components/transaction-history';
-import { Receipt } from '@/lib/schemas';
-import { Receipt as ReceiptIcon, BarChart3, History, FileText } from 'lucide-react';
+import { useState } from "react";
+import { ReceiptUploader } from "@/components/receipt-uploader";
+import { ReceiptDisplay } from "@/components/receipt-display";
+import { SpendingSummary } from "@/components/spending-summary";
+import { ReceiptHistory } from "@/components/receipt-history";
+import { BankStatementUploader } from "@/components/bank-statement-uploader";
+import { TransactionHistory } from "@/components/transaction-history";
+import { Receipt } from "@/lib/schemas";
+import {
+  Receipt as ReceiptIcon,
+  BarChart3,
+  History,
+  FileText,
+} from "lucide-react";
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'scan' | 'transactions' | 'analytics' | 'history'>('scan');
+  const [activeTab, setActiveTab] = useState<
+    "scan" | "transactions" | "analytics" | "history"
+  >("scan");
   const [latestReceipt, setLatestReceipt] = useState<Receipt | null>(null);
   const [refreshHistory, setRefreshHistory] = useState(0);
   const [refreshTransactions, setRefreshTransactions] = useState(0);
 
   const handleReceiptExtracted = (receipt: Receipt) => {
     setLatestReceipt(receipt);
-    setRefreshHistory(prev => prev + 1); // Trigger history refresh
+    setRefreshHistory((prev) => prev + 1); // Trigger history refresh
     // Auto-switch to analytics tab after a delay
     setTimeout(() => {
-      setActiveTab('analytics');
+      setActiveTab("analytics");
     }, 2000);
   };
 
   const handleStatementProcessed = () => {
-    setRefreshTransactions(prev => prev + 1);
+    setRefreshTransactions((prev) => prev + 1);
     // Auto-switch to transactions view
     setTimeout(() => {
       // Stay on transactions tab to show results
@@ -42,65 +49,66 @@ export default function Home() {
             AI Receipt Scanner
           </h1>
           <p className="text-lg text-zinc-600 dark:text-zinc-400">
-            Scan receipts with GPT-4o or Claude 3.5 Sonnet • Extract structured data • Track spending
+            Scan receipts with GPT-4o or Claude 3.5 Sonnet • Extract structured
+            data • Track spending
           </p>
         </div>
 
         {/* Tabs */}
         <div className="flex gap-2 mb-6 border-b border-zinc-200 dark:border-zinc-800">
           <button
-            onClick={() => setActiveTab('scan')}
+            onClick={() => setActiveTab("scan")}
             className={`flex items-center gap-2 px-6 py-3 font-medium transition-colors relative ${
-              activeTab === 'scan'
-                ? 'text-blue-600 dark:text-blue-400'
-                : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
+              activeTab === "scan"
+                ? "text-blue-600 dark:text-blue-400"
+                : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200"
             }`}
           >
             <ReceiptIcon className="w-5 h-5" />
             Scan Receipt
-            {activeTab === 'scan' && (
+            {activeTab === "scan" && (
               <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400" />
             )}
           </button>
           <button
-            onClick={() => setActiveTab('transactions')}
+            onClick={() => setActiveTab("transactions")}
             className={`flex items-center gap-2 px-6 py-3 font-medium transition-colors relative ${
-              activeTab === 'transactions'
-                ? 'text-blue-600 dark:text-blue-400'
-                : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
+              activeTab === "transactions"
+                ? "text-blue-600 dark:text-blue-400"
+                : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200"
             }`}
           >
             <FileText className="w-5 h-5" />
             Transactions
-            {activeTab === 'transactions' && (
+            {activeTab === "transactions" && (
               <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400" />
             )}
           </button>
           <button
-            onClick={() => setActiveTab('analytics')}
+            onClick={() => setActiveTab("analytics")}
             className={`flex items-center gap-2 px-6 py-3 font-medium transition-colors relative ${
-              activeTab === 'analytics'
-                ? 'text-blue-600 dark:text-blue-400'
-                : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
+              activeTab === "analytics"
+                ? "text-blue-600 dark:text-blue-400"
+                : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200"
             }`}
           >
             <BarChart3 className="w-5 h-5" />
             Analytics
-            {activeTab === 'analytics' && (
+            {activeTab === "analytics" && (
               <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400" />
             )}
           </button>
           <button
-            onClick={() => setActiveTab('history')}
+            onClick={() => setActiveTab("history")}
             className={`flex items-center gap-2 px-6 py-3 font-medium transition-colors relative ${
-              activeTab === 'history'
-                ? 'text-blue-600 dark:text-blue-400'
-                : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
+              activeTab === "history"
+                ? "text-blue-600 dark:text-blue-400"
+                : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200"
             }`}
           >
             <History className="w-5 h-5" />
             History
-            {activeTab === 'history' && (
+            {activeTab === "history" && (
               <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400" />
             )}
           </button>
@@ -108,7 +116,7 @@ export default function Home() {
 
         {/* Content */}
         <div className="space-y-8">
-          {activeTab === 'scan' && (
+          {activeTab === "scan" && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <div>
                 <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">
@@ -127,10 +135,12 @@ export default function Home() {
             </div>
           )}
 
-          {activeTab === 'transactions' && (
+          {activeTab === "transactions" && (
             <div className="space-y-8">
               <div>
-                <BankStatementUploader onStatementProcessed={handleStatementProcessed} />
+                <BankStatementUploader
+                  onStatementProcessed={handleStatementProcessed}
+                />
               </div>
               <div>
                 <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">
@@ -141,13 +151,13 @@ export default function Home() {
             </div>
           )}
 
-          {activeTab === 'analytics' && (
+          {activeTab === "analytics" && (
             <div>
               <SpendingSummary />
             </div>
           )}
 
-          {activeTab === 'history' && (
+          {activeTab === "history" && (
             <div>
               <ReceiptHistory key={refreshHistory} />
             </div>
