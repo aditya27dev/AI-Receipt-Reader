@@ -1,4 +1,4 @@
-import { generateObject } from 'ai';
+import { generateText } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { anthropic } from '@ai-sdk/anthropic';
 import { receiptSchema } from '@/lib/schemas';
@@ -51,17 +51,29 @@ export async function POST(req: NextRequest) {
       ? anthropic('claude-3-5-sonnet-20241022')
       : openai('gpt-4o');
 
-    const result = await generateObject({
+    const result = await generateText({
       model,
-      schema: receiptSchema,
+      system: `You are a receipt extraction assistant. Extract receipt information and respond ONLY with valid JSON matching this structure:
+      {
+        "merchantName": "string",
+        "merchantAddress": "string",
+        "date": "YYYY-MM-DD",
+        "time": "HH:MM or empty string",
+        "items": [{"name": "string", "quantity": number, "unitPrice": number, "totalPrice": number, "category": enum}],
+        "subtotal": number,
+        "tax": number,
+        "total": number,
+        "paymentMethod": "cash|credit|debit|mobile|other",
+        "currency": "currency code"
+      }`,
       messages: [
         {
           role: 'user',
           content: [
             {
               type: 'text',
-              text: `Analyze this receipt image and extract all the information in a structured format. 
-              
+              text: `Analyze this receipt image and extract all the information in JSON format.
+
               Instructions:
               - Extract the merchant name, date, and all line items
               - Categorize each item appropriately
@@ -81,8 +93,10 @@ export async function POST(req: NextRequest) {
                 * If unitPrice is not shown, use 0
                 * If subtotal or tax are not shown, use 0
                 * If paymentMethod is not shown, use "other"
-              
-              If any information is unclear or missing, make your best reasonable guess based on context.`,
+
+              If any information is unclear or missing, make your best reasonable guess based on context.
+
+              Return ONLY valid JSON, no markdown, no explanation.`,
             },
             {
               type: 'image',
@@ -93,7 +107,7 @@ export async function POST(req: NextRequest) {
       ],
     });
 
-    const receipt = result.object;
+    const receipt = receiptSchema.parse(JSON.parse(result.text));
     console.log('Extracted receipt:', receipt);
 
     // Save to database

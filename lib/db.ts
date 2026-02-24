@@ -172,7 +172,7 @@ export async function saveReceipt(receipt: Receipt, imageUrl?: string, imageHash
 
 // Generate hash from image buffer for duplicate detection
 export function generateImageHash(buffer: Buffer): string {
-  return CryptoJS.SHA256(CryptoJS.lib.WordArray.create(buffer)).toString();
+  return CryptoJS.SHA256(CryptoJS.lib.WordArray.create(new Uint8Array(buffer))).toString();
 }
 
 // Check if a receipt with the same image hash already exists
