@@ -11,6 +11,7 @@ pnpm install
 ### 2. Get Your API Keys
 
 #### Required: OpenAI (for GPT-4o vision)
+
 1. Go to https://platform.openai.com/api-keys
 2. Create a new API key
 3. Copy it (starts with `sk-`)
@@ -18,6 +19,7 @@ pnpm install
 ⚠️ **Note**: OpenAI is only needed for vision (receipt extraction). Embeddings are now handled by **Ollama (free)**!
 
 #### Optional: Anthropic (Claude 3.5 Sonnet)
+
 1. Go to https://console.anthropic.com/
 2. Create an API key
 3. Copy it (starts with `sk-ant-`)
@@ -28,9 +30,11 @@ ChromaDB is a vector database that stores receipt embeddings for semantic search
 Ollama provides free local embeddings using the `nomic-embed-text` model.
 
 #### Install Docker
+
 If you don't have Docker installed:
+
 - **Mac**: Download [Docker Desktop for Mac](https://www.docker.com/products/docker-desktop)
-- **Linux**: Install via package manager: `sudo apt-get install docker-compose`
+- **Linux**: Install via package manager: `sudo apt-get install docker compose`
 - **Windows**: Download [Docker Desktop for Windows](https://www.docker.com/products/docker-desktop)
 
 #### Quick Setup (Recommended)
@@ -41,6 +45,7 @@ pnpm run setup
 ```
 
 This will:
+
 - Start ChromaDB and Ollama containers
 - Pull the `nomic-embed-text` embedding model (~275MB)
 - Verify everything is working
@@ -61,6 +66,7 @@ pnpm run ollama:models
 ```
 
 Verify services are running:
+
 ```bash
 # ChromaDB health check
 curl http://localhost:8000/api/v1/heartbeat
@@ -111,8 +117,9 @@ curl -X POST http://localhost:3000/api/init-db
 ```
 
 You should see:
+
 ```json
-{"success": true, "message": "Database initialized"}
+{ "success": true, "message": "Database initialized" }
 ```
 
 ### 7. Upload a Receipt!
@@ -127,22 +134,26 @@ You should see:
 ## Troubleshooting
 
 ### "No API key found"
+
 - Make sure your `.env` file is in the root directory
 - Restart the dev server after adding environment variables
 - OpenAI API key is **required** for embeddings
 
 ### "Cannot connect to ChromaDB"
+
 - Ensure Docker is running: `docker ps`
-- Verify ChromaDB container is running: `docker-compose ps`
-- Check ChromaDB logs: `docker-compose logs chromadb`
-- Restart ChromaDB: `docker-compose restart`
+- Verify ChromaDB container is running: `docker compose ps`
+- Check ChromaDB logs: `docker compose logs chromadb`
+- Restart ChromaDB: `docker compose restart`
 
 ### "Failed to process receipt"
+
 - Ensure your image is clear and readable
 - Make sure you have credits on your AI provider account
 - Check the browser console for detailed error messages
 
 ### Receipt not extracted correctly
+
 - Try a different AI model (switch between GPT-4o and Claude)
 - Use a higher quality image
 - Make sure the receipt text is legible
@@ -155,26 +166,26 @@ You should see:
    curl "http://localhost:3000/api/search?q=coffee shops"
    curl "http://localhost:3000/api/search?q=groceries"
    ```
-5. **Inspect the code**: See how `generateObject()` works with Zod schemas
-6. **Customize categories**: Edit the schema in `lib/schemas.ts`
+3. **Inspect the code**: See how `generateObject()` works with Zod schemas
+4. **Customize categories**: Edit the schema in `lib/schemas.ts`
 
 ## Managing ChromaDB
 
 ```bash
 # Stop ChromaDB
-docker-compose down
+docker compose down
 
 # Start ChromaDB
-docker-compose up -d
+docker compose up -d
 
 # View ChromaDB logs
-docker-compose logs -f chromadb
+docker compose logs -f chromadb
 
 # Reset ChromaDB (delete all data)
-docker-compose down -v
-docker-compose up -d
+docker compose down -v
+docker compose up -d
 ``pending breakdown
-4. **Inspect the code**: See how `generateObject()` works with Zod schemas
+4. **Inspect the code**: See how `generateText()` works with Zod schemas
 5. **Customize categories**: Edit the schema in `lib/schemas.ts`
 
 ## Next Steps
@@ -186,3 +197,4 @@ docker-compose up -d
 - Set spending budgets
 
 Enjoy building! 🎉
+```

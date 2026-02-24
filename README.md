@@ -1,361 +1,133 @@
 # 🧾 AI Receipt Scanner & Bank Statement Analyzer
 
-**Copyright © 2026 Aditya Batra - All Rights Reserved**  
-**Project ID:** `RECEIPT-SCANNER-AB-2026-7F8K9M2P`
+**Copyright © 2026 Aditya Batra - All Rights Reserved**
 
-> **📖 New to this app? Check out the [User Guide](USER-GUIDE.md) for a complete walkthrough!**
+A full-stack AI-powered application that intelligently scans receipts and bank statements, extracts structured financial data, and provides real-time spending analytics using vector embeddings and semantic search.
 
-A **Full-Stack** project showcasing **Multimodal AI**, **Structured Data Extraction**, **Vector Databases**, **PDF Processing**, and **Generative UI** in 2026.
+## ⚡ What This Does
 
-Built with Next.js 15+, Vercel AI SDK, ChromaDB, and modern AI models (GPT-4o & Claude 3.5 Sonnet).
+Upload a receipt photo or PDF bank statement → **AI extracts all data** → **Intelligent categorization** → **Beautiful analytics dashboard** with spending breakdowns, trends, and semantic search capabilities.
 
-> **Portfolio Project by Aditya Batra** - Demonstrates advanced AI integration, vector databases, PDF text extraction, and modern full-stack development
+## 🎯 Key Features
 
-## ⚠️ License Notice
+| Feature | Description |
+|---------|-------------|
+| 📸 **Vision AI Receipt Scanning** | Multimodal AI (GPT-4o & Claude 3.5) extracts merchant, items, totals from receipt images |
+| 📄 **PDF Bank Statement Processing** | Automatically extracts all transactions from bank statements with AI categorization |
+| 🔍 **Duplicate Detection** | SHA-256 image hashing prevents duplicate uploads and saves API costs |
+| 💰 **Multi-Currency Support** | Auto-detects currencies (£, $, €, ¥) from receipts and statements |
+| 🧠 **Semantic Search** | Find receipts/transactions using natural language queries via vector embeddings |
+| 📊 **Analytics Dashboard** | Interactive charts, spending breakdowns by category, trends over time |
+| 🌓 **Dark Mode** | Full dark mode support with responsive design |
+| ✅ **Type-Safe** | Full TypeScript with Zod schema validation end-to-end |
 
-**This project is licensed for PERSONAL USE ONLY.**
+## 🛠️ Tech Stack
 
-- ✅ You may study the code for learning purposes
-- ✅ You may run it locally for testing
-- ❌ You may NOT use it for your own portfolio demonstration
-- ❌ You may NOT use it for commercial purposes
-- ❌ You may NOT deploy it to production
+**Frontend:** Next.js 16 • React 19 • Tailwind CSS 3 • Recharts
+**AI/ML:** Vercel AI SDK (v6) • OpenAI GPT-4o • Claude 3.5 Sonnet
+**Backend:** Node.js • RESTful APIs • PDF parsing
+**Database:** ChromaDB (vector embeddings) • Docker
+**Tools:** TypeScript • Zod • ESLint 9 • pnpm
 
-See [LICENSE](LICENSE) for full terms. Violations will be pursued.
-
-## ✨ Features
-
-### 📸 Receipt Scanning
-- **Multimodal Vision AI** - Upload receipt images with multiple options:
-  - **GPT-4o** - Best overall accuracy
-  - **Claude 3.5 Sonnet** - Excellent for complex receipts
-- 🔍 **Duplicate Detection** - SHA-256 image hashing prevents duplicate uploads and saves AI API costs
-- 💰 **Multi-Currency Support** - Automatically detects currencies (£, $, €, ¥, ₹) from receipts
-- 🖼️ **Receipt History** - Browse all uploaded receipts with image thumbnails and full details
-- 🗑️ **Delete Receipts** - Remove receipts you don't need
-
-### 🏦 Bank Statement Analysis (NEW!)
-- 📄 **PDF Statement Upload** - Upload bank credit card statements (tested with Virgin Money)
-- 🤖 **AI-Powered Extraction** - Automatically extracts ALL transactions from PDF using pdf-parse
-- 🏷️ **Smart Categorization** - AI categorizes each transaction (groceries, dining, travel, entertainment, etc.)
-- 📊 **Transaction Analytics** - See where you spent the most with detailed breakdowns by category
-- 🔒 **Privacy First** - All data stays local in ChromaDB (only AI API calls go external)
-- 🔍 **Filter by Category** - View transactions by specific categories
-- 📈 **Spending Progress Bars** - Visual breakdown of spending distribution
-
-### 📊 Analytics & Insights
-- 🎯 **Structured Extraction** - Uses Zod schemas with `generateObject()` for type-safe data extraction
-- 📈 **Generative UI** - Beautiful spending analytics with interactive charts and breakdowns
-- 🗄️ **Vector Database (ChromaDB)** - Store receipts and transactions with embeddings for semantic search
-- 🔎 **Semantic Search** - Find receipts and transactions by natural language queries
-- 💱 **Currency Selector** - View analytics in different currencies when you have mixed-currency data
-- 📜 **Transaction History** - View all bank transactions with category filtering and statistics
-
-### 🎨 Developer Experience
-- 🐳 **Docker Integration** - ChromaDB runs in Docker for easy setup
-- 🎨 **Modern UI** - Built with Next.js 15, React 19, and Tailwind CSS 4
-- 🌓 **Dark Mode** - Full dark mode support throughout the app
-- ✅ **Type Safety** - Full TypeScript with Zod validation and strict type checking
-- 🎨 **Drag & Drop** - Intuitive file upload for both receipts and PDF statements
-
-## 🏗️ Architecture: "The Agentic Pipeline"
-
-```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────┐     ┌──────────────┐
-│   File Upload   │ ──> │   AI Processing  │ ──> │  Structured │ ──> │   ChromaDB   │
-│ Receipt/PDF     │     │  • GPT-4o Vision │     │ Extraction  │     │   (Docker)   │
-│                 │     │  • Claude Vision │     │    (Zod)    │     │  OpenAI      │
-│                 │     │  • PDF Parser    │     │             │     │  Embeddings  │
-└─────────────────┘     └──────────────────┘     └─────────────┘     └──────────────┘
-                                                         │                     │
-                                                         v                     v
-                                                 ┌──────────────┐     ┌──────────────┐
-                                                 │ Generative UI│     │   Semantic   │
-                                                 │ Charts/Tables│     │    Search    │
-                                                 └──────────────┘     └──────────────┘
-```
-
-### Key Components
-
-1. **Receipt Scanner** - Upload images → AI vision extracts structured data → Store with embeddings
-2. **Bank Statement Analyzer** - Upload PDF → Extract text → AI categorizes transactions → Store & analyze
-3. **Vector Database** - ChromaDB with OpenAI embeddings for semantic search across all data
-4. **Analytics Dashboard** - Real-time charts, spending breakdowns, and multi-currency support
-5. **Transaction History** - Searchable, filterable transaction list with category totals and statistics
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Node.js 20+
-- pnpm (or npm/yarn)
-- Docker & Docker Compose
-- OpenAI API key (required, for GPT-4o vision and embeddings)
-- Anthropic API key (optional, for Claude 3.5 Sonnet vision)
-
-### Installation
-
-1. **Clone and install dependencies:**
+## 🚀 Quick Start
 
 ```bash
+# 1. Install dependencies
 pnpm install
-```
 
-2. **Set up environment variables:**
-
-Create a `.env` file based on `.env.example`:
-
-```bash
+# 2. Set environment variables
 cp .env.example .env
-```
+# Add OPENAI_API_KEY and ANTHROPIC_API_KEY (optional)
 
-Then add your API keys:
-
-```env
-# Required: OpenAI for GPT-4o vision and embeddings
-OPENAI_API_KEY=sk-...
-
-# Optional: Anthropic for Claude 3.5 Sonnet
-ANTHROPIC_API_KEY=sk-ant-...
-
-# ChromaDB URL (defaults when using Docker Compose)
-CHROMA_URL=http://localhost:8000
-```
-
-**Getting API Keys:**
-- **OpenAI**: https://platform.openai.com/api-keys (required)
-- **Anthropic**: https://console.anthropic.com/ (optional, for Claude)
-
-3. **Start ChromaDB with Docker:**
-
-```bash
+# 3. Start ChromaDB
 docker-compose up -d
-```
 
-Verify ChromaDB is running:
-```bash
-curl http://localhost:8000/api/v1/heartbeat
-```
-
-4. **Run the development server:**
-
-```bash
+# 4. Run development server
 pnpm dev
+
+# 5. Open http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to see the app!
+## 💡 What This Demonstrates
 
-The ChromaDB collection will be automatically created when you upload your first receipt.
+### AI & Machine Learning
+- **Multimodal Vision AI** - Process images and extract structured data
+- **JSON Schema Validation** - Use AI output with guaranteed type safety
+- **Prompt Engineering** - Precise instructions for accurate extraction
+- **Multi-Model Support** - Seamless provider switching (OpenAI ↔ Anthropic)
 
-<details>
-<summary>Optional: Manually initialize the database</summary>
+### Backend Development
+- **Next.js App Router** - Modern server/client component architecture
+- **RESTful API Design** - Clean, error-handled endpoints
+- **File Processing** - Base64 encoding, PDF extraction, image hashing
+- **Real-time Pipelines** - Process and analyze data on upload
 
-If you prefer to initialize the ChromaDB collection manually before uploading receipts:
+### Data & Vector Databases
+- **Vector Embeddings** - OpenAI embeddings for semantic search
+- **ChromaDB Integration** - Vector database for similarity queries
+- **Duplicate Detection** - SHA-256 hashing for intelligent deduplication
+- **Multi-format Handling** - Images, PDFs, JSON data
 
-```bash
-curl -X POST http://localhost:3000/api/init-db
+### Frontend & UX
+- **Generative UI** - Dynamic component rendering based on AI data
+- **Interactive Charts** - Real-time spending visualizations
+- **Responsive Design** - Mobile-friendly with drag & drop
+- **Dark Mode** - Full theme support
+
+### DevOps & Best Practices
+- **Docker Containerization** - Simple deployment with Docker Compose
+- **Type Safety** - TypeScript strict mode throughout
+- **Modern Tooling** - ESLint 9 flat config, pnpm for performance
+- **Production Ready** - Full build and lint passing
+
+## 🎓 Project Highlights
+
+✅ **Full working application** - Not just a tutorial or template
+✅ **Production-grade code** - Type-safe, error handling, validation
+✅ **Modern tech stack** - Latest versions of Next.js, React, TypeScript
+✅ **Real AI integration** - Works with actual AI models (GPT-4o, Claude)
+✅ **Practical features** - Duplicate detection, multi-currency, dark mode
+✅ **Vector database** - Advanced search with semantic understanding
+
+## 📝 API Endpoints
+
+```
+POST   /api/extract-receipt      → Extract receipt data from image
+POST   /api/process-statement    → Extract transactions from PDF
+GET    /api/receipts             → Get all receipts & analytics
+DELETE /api/receipts/[id]        → Delete specific receipt
+GET    /api/transactions         → Get all transactions
+GET    /api/search?q=query       → Semantic search
 ```
 
-</details>
+## 📚 How It Works
 
-## 🎯 How It Works
-
-### 1. Upload & Extract
-
-The user uploads a receipt image. The app:
-- Converts the image to base64
-- Sends it to GPT-4o or Claude 3.5 Sonnet
-- Uses `generateObject()` from Vercel AI SDK with a Zod schema
-- Extracts structured data (merchant, date, items, totals, categories)
-
-### 2. Generate Embeddings & Store
-
-The extracted receipt is processed:
-- Receipt text is created from structured data
-- OpenAI's `text-embedding-3-small` generates vector embeddings
-- Stored in ChromaDB with:
-  - Vector embeddings for semantic search
-  - Metadata (merchant, date, totals, payment info)
-  - Full receipt document text
-
-### 3. Analyze (Generative UI)
-
-The analytics tab queries the database and generates:
-- **Total spending** across all receipts
-- **Category breakdown** (pie chart & bar chart)
-- **Spending over time** (line chart)
-- **Detailed table** with averages and counts
-
-## 🛠️ Technologies
-
-- **Framework**: Next.js 15+ (App Router, React 19, Server Components)
-- **AI SDK**: Vercel AI SDK (`ai` package) with `generateObject()`
-- **AI Models**: OpenAI GPT-4o, Anthropic Claude 3.5 Sonnet
-- **PDF Processing**: pdf-parse (for text extraction from bank statements)
-- **Embeddings**: OpenAI text-embedding-3-small
-- **Vector Database**: ChromaDB (Docker) with semantic search
-- **Validation**: Zod (type-safe schemas)
-- **Charts**: Recharts (interactive visualizations)
-- **Styling**: Tailwind CSS 4 (latest)
-- **Icons**: Lucide React
-- **Date Handling**: date-fns
-- **Security**: crypto-js (SHA-256 image hashing for duplicate detection)
-- **Type Safety**: TypeScript with strict mode
-
-## 🎨 Key Concepts Demonstrated
-
-### Multimodal AI
-Uses vision-capable models to "see" receipt images without OCR:
-
-```typescript
-await generateObject({
-  model: openai('gpt-4o'),
-  schema: receiptSchema,
-  messages: [{
-    role: 'user',
-    content: [
-      { type: 'text', text: '...' },
-      { type: 'image', image: `data:image/jpeg;base64,${base64}` }
-    ]
-  }]
-});
+```
+Receipt/PDF Upload
+    ↓
+AI Vision Processing (GPT-4o or Claude)
+    ↓
+Structured Extraction (generateText + JSON validation)
+    ↓
+Zod Schema Validation
+    ↓
+Vector Embedding Generation (OpenAI)
+    ↓
+Storage in ChromaDB + Metadata
+    ↓
+Analytics & Search Ready
 ```
 
-### Structured Extraction
-Type-safe extraction with Zod schemas:
+## ⚠️ License
 
-```typescript
-const receiptSchema = z.object({
-  merchantName: z.string(),
-  items: z.array(receiptItemSchema),
-  total: z.number(),
-  // ...
-});
-```
+**Personal Use Only** - This is a portfolio project to demonstrate advanced full-stack AI development skills.
 
-### Generative UI
-Components that generate visualizations based on AI-extracted data:
-- Real-time chart rendering
-- Category-based analytics
-- Spending trends over time
+- ✅ Study the code, run it locally, learn from it
+- ❌ Cannot be used for your own portfolio or deployed to production
 
-## 🚢 Deployment
-
-### Deploy to Vercel
-
-```bash
-vercel deploy
-```
-
-Make sure to:
-1. Add environment variables in Vercel dashboard
-2. Create a Postgres database in Vercel (or use ChromaDB)
-3. The database will auto-initialize on first receipt upload
-
-## 📝 API Routes
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/extract-receipt` | POST | Upload receipt image, extract with AI (supports duplicate detection) |
-| `/api/process-statement` | POST | Upload PDF bank statement, extract & categorize all transactions |
-| `/api/receipts` | GET | Get all receipts and spending analytics |
-| `/api/receipts/[id]` | DELETE | Delete a specific receipt by ID |
-| `/api/transactions` | GET | Get all bank transactions with category summary |
-| `/api/search?q=query` | GET | Semantic search across receipts |
-| `/api/init-db` | POST | Initialize ChromaDB collection (optional, auto-creates) |
-
-## 📚 Documentation
-
-- **[USER-GUIDE.md](USER-GUIDE.md)** - Complete user guide with app flow and tutorials
-- **[CHROMADB.md](CHROMADB.md)** - ChromaDB setup and vector database usage
-- **[SETUP.md](SETUP.md)** - Detailed installation and configuration guide
-
-## 🧪 Testing Locally
-
-1. Start ChromaDB: `docker-compose up -d`
-2. Start the dev server: `pnpm dev`
-3. Open http://localhost:3000
-4. Upload a receipt image (the database will auto-initialize on first upload)
-5. Watch as the AI extracts structured data and generates embeddings
-6. Navigate to the Analytics tab to see spending visualizations
-7. Try semantic search: `curl "http://localhost:3000/api/search?q=coffee"`
-
-## 💡 Features Completed
-
-- [x] Semantic search with vector embeddings
-- [x] Receipt duplication detection using SHA-256 hashing
-- [x] Multi-currency support with auto-detection
-- [x] Bank statement PDF processing and analysis
-- [x] Transaction categorization with AI
-- [x] Receipt history with image thumbnails
-- [x] Delete receipts and transactions
-- [x] Drag & drop file upload
-- [x] Dark mode support
-- [x] Multiple AI model options (2 providers: GPT-4o & Claude)
-
-## 🚀 Future Enhancements
-
-- [ ] Advanced filtering UI for search results
-- [ ] Export to CSV/PDF
-- [ ] Monthly spending reports with email notifications
-- [ ] Budget tracking and alerts
-- [ ] Receipt image storage in cloud (S3/R2)
-- [ ] Multi-user authentication (Clerk/Auth.js)
-- [ ] Mobile app with React Native
-- [ ] Recurring transaction detection
-- [ ] Receipt OCR editing interface
-- [ ] Multi-bank statement support (auto-detect format)
-
-## 📄 License
-
-**Personal Use License** - see [LICENSE](LICENSE) file for details
-
-This project is licensed for personal, educational, and local development use only.  
-Production deployment and commercial use are **not permitted** without explicit permission.
-
-For commercial licensing inquiries, please contact the author.
-
-## 👨‍💻 Author
-
-**Aditya Batra**  
-📧 Contact: [Your Email]  
-🔗 LinkedIn: [Your LinkedIn]  
-🐙 GitHub: [Your GitHub]
-
-### Skills Demonstrated
-
-This project demonstrates:
-- Advanced AI/ML integration (multimodal vision with GPT-4o and Claude)
-- Vector database implementation with semantic search
-- PDF text extraction and processing
-- Multi-currency financial data handling
-- Modern full-stack TypeScript development
-- Docker containerization
-- Type-safe data extraction with Zod schemas
-
-### Project Identification
-
-**Unique Project ID:** `RECEIPT-SCANNER-AB-2026-7F8K9M2P`  
-**Copyright:** © 2026 Aditya Batra - All Rights Reserved  
-**License:** Personal Use Only (see LICENSE file)
+See [LICENSE](LICENSE) for details.
 
 ---
 
-## 🚨 Copyright & Usage Notice
-
-This project is the **intellectual property of Aditya Batra**.  
-
-**Unauthorized use includes:**
-- Using this project for your own portfolio
-- Deploying to production (personal or commercial)
-- Claiming this work as your own
-- Commercial use of any kind
-
-**Monitoring:** This project contains unique identifiers for tracking unauthorized use.  
-**Enforcement:** Violations will be reported to GitHub and hosting platforms.
-
-For licensing inquiries, please contact the author.
-
----
-
-Built with ❤️ using Next.js 15, Vercel AI SDK, and ChromaDB
+**Built by Aditya Batra** • [LinkedIn](#) • [GitHub](#)
+_Demonstrating advanced AI integration, vector databases, and modern full-stack development_
