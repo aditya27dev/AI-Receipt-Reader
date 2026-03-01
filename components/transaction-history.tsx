@@ -3,7 +3,10 @@
 import { useEffect, useState } from "react";
 import { StoredTransaction } from "@/lib/db";
 import { format } from "date-fns";
-import { Loader2, FileText, TrendingUp, DollarSign } from "lucide-react";
+import { Loader2, FileText, TrendingUp, DollarSign, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
+
+type SortField = "date" | "description" | "category" | "amount";
+type SortDir = "asc" | "desc";
 
 // Get currency symbol from currency code
 function getCurrencySymbol(currencyCode: string): string {
@@ -46,6 +49,8 @@ export function TransactionHistory() {
   const [transactions, setTransactions] = useState<StoredTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [sortField, setSortField] = useState<SortField>("date");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
 
   useEffect(() => {
     fetchTransactions();
@@ -112,10 +117,35 @@ export function TransactionHistory() {
 
   const categories = ["all", ...Object.keys(categoryTotals).sort()];
 
-  const filteredTransactions =
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDir(field === "date" ? "desc" : "asc");
+    }
+  };
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) return <ChevronsUpDown className="w-3 h-3 ml-1 opacity-40" />;
+    return sortDir === "asc"
+      ? <ChevronUp className="w-3 h-3 ml-1" />
+      : <ChevronDown className="w-3 h-3 ml-1" />;
+  };
+
+  const filteredTransactions = (
     selectedCategory === "all"
       ? transactions
-      : transactions.filter((t) => t.category === selectedCategory);
+      : transactions.filter((t) => t.category === selectedCategory)
+  ).slice().sort((a, b) => {
+    const dir = sortDir === "asc" ? 1 : -1;
+    switch (sortField) {
+      case "date":        return dir * a.date.localeCompare(b.date);
+      case "description": return dir * a.description.localeCompare(b.description);
+      case "category":    return dir * a.category.localeCompare(b.category);
+      case "amount":      return dir * (a.amount - b.amount);
+    }
+  });
 
   const currencySymbol = getCurrencySymbol(transactions[0]?.currency || "GBP");
 
@@ -199,18 +229,18 @@ export function TransactionHistory() {
           <table className="w-full">
             <thead className="bg-zinc-50 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                  Date
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                  Description
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                  Category
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                  Amount
-                </th>
+                {(["date", "description", "category", "amount"] as SortField[]).map((field, i) => (
+                  <th
+                    key={field}
+                    onClick={() => handleSort(field)}
+                    className={`px-6 py-3 text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer select-none hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors ${i === 3 ? "text-right" : "text-left"}`}
+                  >
+                    <span className="inline-flex items-center">
+                      {field}
+                      <SortIcon field={field} />
+                    </span>
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700">
