@@ -28,11 +28,7 @@ const TRANSACTIONS_COLLECTION_NAME = 'bank_transactions';
 // Initialize ChromaDB client
 function getChromaClient() {
   const chromaUrl = process.env.CHROMA_URL || 'http://localhost:8000';
-  const url = new URL(chromaUrl);
-  return new ChromaClient({
-    host: url.hostname,
-    port: parseInt(url.port) || 8000,
-  });
+  return new ChromaClient({ path: chromaUrl });
 }
 
 // Generate embedding for receipt text using OpenAI
@@ -99,30 +95,18 @@ export async function createReceiptsTable() {
 
 // Helper to ensure collection exists and is properly configured
 async function getReceiptsCollection(client: ReturnType<typeof getChromaClient>) {
-  try {
-    // Try to get the collection
-    const collection = await client.getCollection({ name: COLLECTION_NAME });
-    return collection;
-  } catch {
-    // Collection doesn't exist, create it
-    return await client.createCollection({
-      name: COLLECTION_NAME,
-      metadata: { description: 'Receipt storage with embeddings' },
-    });
-  }
+  return client.getOrCreateCollection({
+    name: COLLECTION_NAME,
+    metadata: { description: 'Receipt storage with embeddings' },
+  });
 }
 
 // Helper to ensure transactions collection exists
 async function getTransactionsCollection(client: ReturnType<typeof getChromaClient>) {
-  try {
-    const collection = await client.getCollection({ name: TRANSACTIONS_COLLECTION_NAME });
-    return collection;
-  } catch {
-    return await client.createCollection({
-      name: TRANSACTIONS_COLLECTION_NAME,
-      metadata: { description: 'Bank transaction storage with embeddings' },
-    });
-  }
+  return client.getOrCreateCollection({
+    name: TRANSACTIONS_COLLECTION_NAME,
+    metadata: { description: 'Bank transaction storage with embeddings' },
+  });
 }
 
 // Save a receipt to ChromaDB
@@ -417,13 +401,10 @@ export async function saveTransactions(
 // Get all bank transactions
 export async function getTransactions(limit = 500): Promise<StoredTransaction[]> {
   const client = getChromaClient();
-  
+
   try {
     const collection = await getTransactionsCollection(client);
-    
-    const results = await collection.get({
-      limit,
-    });
+    const results = await collection.get({ limit });
     
     if (!results.ids || results.ids.length === 0) {
       return [];

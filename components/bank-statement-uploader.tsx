@@ -2,10 +2,9 @@
 
 import { useState } from 'react';
 import { Loader2, AlertCircle, FileText, CheckCircle } from 'lucide-react';
-import { BankTransaction } from '@/lib/transaction-schemas';
 
 interface BankStatementUploaderProps {
-  onStatementProcessed: (transactions: BankTransaction[]) => void;
+  onStatementProcessed: () => void;
 }
 
 export function BankStatementUploader({ onStatementProcessed }: BankStatementUploaderProps) {
@@ -45,7 +44,7 @@ export function BankStatementUploader({ onStatementProcessed }: BankStatementUpl
       
       setSuccess(true);
       setTransactionCount(data.count);
-      onStatementProcessed(data.transactions);
+      onStatementProcessed();
       
       // Auto-hide success message after 5 seconds
       setTimeout(() => {

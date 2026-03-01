@@ -10,10 +10,7 @@ export async function GET() {
       getTransactionSummary(),
     ]);
 
-    return NextResponse.json({
-      transactions,
-      summary,
-    });
+    return NextResponse.json({ transactions, summary });
   } catch (error) {
     console.error('Error fetching transactions:', error);
     return NextResponse.json(

@@ -27,11 +27,27 @@ export async function POST(request: NextRequest) {
 
     // Extract text from PDF
     console.log('Extracting text from PDF...');
-    // Dynamic import for pdf-parse which exports PDFParse as a named export
-    const { PDFParse } = await import('pdf-parse');
-    const pdfParser = new PDFParse({ data: buffer });
-    const result = await pdfParser.getText();
-    const extractedText = result.text;
+    const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    // Point to the legacy worker file for Node.js compatibility
+    const path = await import('path');
+    const workerPath = path.resolve(
+      process.cwd(),
+      'node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs'
+    );
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `file://${workerPath}`;
+
+    const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(buffer) });
+    const pdf = await loadingTask.promise;
+    const pageTexts: string[] = [];
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      const pageText = content.items
+        .map((item) => ('str' in item ? item.str : ''))
+        .join(' ');
+      pageTexts.push(pageText);
+    }
+    const extractedText = pageTexts.join('\n');
 
     if (!extractedText || extractedText.length < 50) {
       return NextResponse.json(
