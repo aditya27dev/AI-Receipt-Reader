@@ -5,6 +5,7 @@ Welcome! This guide will help you understand and use the AI Receipt Scanner appl
 ## 🎯 What Does This App Do?
 
 The AI Receipt Scanner helps you:
+
 - 📸 **Scan receipts** using AI vision technology (GPT-4o or Claude)
 - 🏦 **Analyze bank statements** by uploading PDF files
 - 📊 **Track spending** with automatic categorization
@@ -18,6 +19,7 @@ The AI Receipt Scanner helps you:
 ### 1. First Time Setup
 
 Before using the app, make sure:
+
 - ✅ ChromaDB is running (see [Setup Instructions](#setup-instructions))
 - ✅ You have an OpenAI API key configured
 - ✅ The development server is running
@@ -39,15 +41,19 @@ Visit **http://localhost:3000** to access the app.
 The app has **4 main tabs**:
 
 ### 📸 1. Receipt Scanner Tab
+
 Upload and scan individual receipt images.
 
 ### 📊 2. Analytics Tab
+
 View spending summaries, charts, and insights.
 
 ### 📜 3. History Tab
+
 Browse all previously scanned receipts with images.
 
 ### 🏦 4. Transactions Tab
+
 View bank statement transactions and manage spending data.
 
 ---
@@ -119,7 +125,6 @@ View bank statement transactions and manage spending data.
 2. **Upload PDF Statement**
    - Click "Upload Bank Statement" button
    - Select your PDF statement file
-   - Tested with: Virgin Money, but works with most formats
 
 3. **Processing**
    - PDF text is extracted
@@ -259,6 +264,7 @@ The app includes powerful semantic search:
 ```
 
 **Example Queries:**
+
 - "Coffee purchases"
 - "Expensive meals"
 - "Shopping at Walmart"
@@ -270,25 +276,30 @@ The app includes powerful semantic search:
 ## 💡 Key Features Explained
 
 ### 🔒 Duplicate Detection
+
 - Uses SHA-256 image hashing
 - Prevents uploading same receipt twice
 - Saves API costs and keeps data clean
 
 ### 💱 Multi-Currency Support
+
 - Automatically detects currency symbols
 - Supports: USD ($), GBP (£), EUR (€), JPY (¥), INR (₹)
 - Currency selector in analytics
 
 ### 🤖 AI Models
+
 - **GPT-4o**: Best accuracy, slightly more expensive
 - **Claude 3.5 Sonnet**: Great for tricky receipts, good value
 
 ### 📦 Vector Database
+
 - ChromaDB stores all data
 - Enables semantic search
 - Fast retrieval of similar receipts
 
 ### 🎨 Dark Mode
+
 - Automatically follows system preference
 - Toggle in browser settings
 
@@ -297,6 +308,7 @@ The app includes powerful semantic search:
 ## 🛠️ Setup Instructions
 
 ### Prerequisites
+
 - Node.js 20+
 - Docker & Docker Compose
 - OpenAI API key
@@ -304,22 +316,26 @@ The app includes powerful semantic search:
 ### Installation
 
 1. **Clone the repository**
+
 ```bash
 git clone https://github.com/YOUR_USERNAME/ai-receipt-scanner
 cd ai-receipt-scanner
 ```
 
 2. **Install dependencies**
+
 ```bash
 pnpm install
 ```
 
 3. **Configure environment variables**
+
 ```bash
 cp .env.example .env
 ```
 
 Edit `.env` and add:
+
 ```env
 OPENAI_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-ant-...  # Optional
@@ -327,16 +343,19 @@ CHROMA_URL=http://localhost:8000
 ```
 
 4. **Start ChromaDB**
+
 ```bash
 pnpm run docker:up
 ```
 
 5. **Run the app**
+
 ```bash
 pnpm dev
 ```
 
 6. **Open in browser**
+
 ```
 http://localhost:3000
 ```
@@ -393,9 +412,11 @@ http://localhost:3000
 ## 🔧 Troubleshooting
 
 ### ChromaDB Not Running
+
 **Error:** "Failed to connect to ChromaDB"
 
 **Solution:**
+
 ```bash
 pnpm run docker:up
 # Check status
@@ -403,26 +424,32 @@ docker ps
 ```
 
 ### Embedding Warnings
+
 **Error:** "Cannot instantiate collection with DefaultEmbeddingFunction"
 
 **Solution:**
+
 ```bash
 # Reset ChromaDB database
 pnpm run docker:reset
 ```
 
 ### API Key Issues
+
 **Error:** "OPENAI_API_KEY is not configured"
 
 **Solution:**
+
 - Check your `.env` file exists
 - Verify API key is correct
 - Restart the dev server
 
 ### Image Upload Fails
+
 **Error:** "Failed to process receipt"
 
 **Possible causes:**
+
 - Image format not supported (use JPG/PNG)
 - Image too large (max ~10MB)
 - API rate limit reached
@@ -433,6 +460,7 @@ pnpm run docker:reset
 ## 📞 Support
 
 For issues or questions:
+
 - Check [SETUP.md](SETUP.md) for detailed configuration
 - Review [CHROMADB.md](CHROMADB.md) for database issues
 - See [LICENSE](LICENSE) for usage terms
@@ -444,6 +472,7 @@ For issues or questions:
 Want to understand how it works?
 
 **Key Technologies:**
+
 - **Next.js 15** - React framework
 - **Vercel AI SDK** - AI integration toolkit
 - **ChromaDB** - Vector database for embeddings
@@ -452,6 +481,7 @@ Want to understand how it works?
 - **Zod** - Schema validation
 
 **Concepts Demonstrated:**
+
 - Multimodal AI (vision + text)
 - Structured data extraction
 - Vector embeddings
