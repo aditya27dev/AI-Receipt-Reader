@@ -1,7 +1,7 @@
-import { generateText } from 'ai';
+import { generateText, Output } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { anthropic } from '@ai-sdk/anthropic';
-import { receiptSchema } from '@/lib/schemas';
+import { receiptSchema, receiptJsonSchema } from '@/lib/schemas';
 import { saveReceipt, generateImageHash, findReceiptByImageHash } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -53,50 +53,25 @@ export async function POST(req: NextRequest) {
 
     const result = await generateText({
       model,
-      system: `You are a receipt extraction assistant. Extract receipt information and respond ONLY with valid JSON matching this structure:
-      {
-        "merchantName": "string",
-        "merchantAddress": "string",
-        "date": "YYYY-MM-DD",
-        "time": "HH:MM or empty string",
-        "items": [{"name": "string", "quantity": number, "unitPrice": number, "totalPrice": number, "category": enum}],
-        "subtotal": number,
-        "tax": number,
-        "total": number,
-        "paymentMethod": "cash|credit|debit|mobile|other",
-        "currency": "currency code"
-      }`,
+      output: Output.object({ schema: receiptSchema }),
       messages: [
         {
           role: 'user',
           content: [
             {
               type: 'text',
-              text: `Analyze this receipt image and extract all the information in JSON format.
+              text: `Analyze this receipt image and extract all information. Respond with a JSON object that strictly conforms to the following JSON Schema:
 
-              Instructions:
-              - Extract the merchant name, date, and all line items
-              - Categorize each item appropriately
-              - Calculate totals accurately
-              - Use ISO date format (YYYY-MM-DD)
-              - Be as accurate as possible with numbers
-              - DETECT CURRENCY from the receipt (look for £, $, €, ¥ symbols):
-                * £ = GBP (British Pound)
-                * $ = USD (US Dollar)
-                * € = EUR (Euro)
-                * ¥ = JPY (Japanese Yen)
-                * Use the appropriate ISO currency code based on the symbol found
-              - ALL fields must be filled:
-                * If merchantAddress is not visible, use empty string ""
-                * If time is not visible, use empty string ""
-                * If quantity is not shown, use 1
-                * If unitPrice is not shown, use 0
-                * If subtotal or tax are not shown, use 0
-                * If paymentMethod is not shown, use "other"
+${JSON.stringify(receiptJsonSchema, null, 2)}
 
-              If any information is unclear or missing, make your best reasonable guess based on context.
-
-              Return ONLY valid JSON, no markdown, no explanation.`,
+Instructions:
+- Use ISO date format (YYYY-MM-DD) for the date field
+- DETECT CURRENCY from the receipt symbols: £ = GBP, $ = USD, € = EUR, ¥ = JPY
+- Use empty string "" for any text field not visible on the receipt
+- Use 0 for any numeric field not visible on the receipt
+- Use 1 for quantity and 0 for unitPrice when not shown
+- Use "other" for paymentMethod when not shown
+- Make your best reasonable guess for any unclear information`,
             },
             {
               type: 'image',
@@ -107,7 +82,7 @@ export async function POST(req: NextRequest) {
       ],
     });
 
-    const receipt = receiptSchema.parse(JSON.parse(result.text));
+    const receipt = result.output;
     console.log('Extracted receipt:', receipt);
 
     // Save to database

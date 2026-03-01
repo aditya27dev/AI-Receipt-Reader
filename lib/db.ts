@@ -7,7 +7,7 @@
 import { ChromaClient } from 'chromadb';
 import { Receipt } from './schemas';
 import { BankTransaction } from './transaction-schemas';
-import CryptoJS from 'crypto-js';
+import { createHash } from 'crypto';
 
 export interface StoredReceipt extends Receipt {
   id: string;
@@ -156,7 +156,7 @@ export async function saveReceipt(receipt: Receipt, imageUrl?: string, imageHash
 
 // Generate hash from image buffer for duplicate detection
 export function generateImageHash(buffer: Buffer): string {
-  return CryptoJS.SHA256(CryptoJS.lib.WordArray.create(new Uint8Array(buffer))).toString();
+  return createHash('sha256').update(new Uint8Array(buffer)).digest('hex');
 }
 
 // Check if a receipt with the same image hash already exists

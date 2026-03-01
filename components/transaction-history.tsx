@@ -52,9 +52,15 @@ export function TransactionHistory() {
   }, []);
 
   const fetchTransactions = async () => {
-    await fetch("/api/transactions");
-    setLoading(false);
-    return;
+    try {
+      const response = await fetch("/api/transactions");
+      const data = await response.json();
+      setTransactions(data.transactions ?? []);
+    } catch (err) {
+      console.error("Failed to fetch transactions:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (loading) {

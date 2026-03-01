@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateObject } from 'ai';
+import { generateText, Output } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { anthropic } from '@ai-sdk/anthropic';
-import { bankStatementSchema } from '@/lib/transaction-schemas';
+import { bankStatementSchema, bankStatementJsonSchema } from '@/lib/transaction-schemas';
 import { saveTransactions } from '@/lib/db';
 
 export const runtime = 'nodejs';
@@ -27,27 +27,8 @@ export async function POST(request: NextRequest) {
 
     // Extract text from PDF
     console.log('Extracting text from PDF...');
-    const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
-    // Point to the legacy worker file for Node.js compatibility
-    const path = await import('path');
-    const workerPath = path.resolve(
-      process.cwd(),
-      'node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs'
-    );
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `file://${workerPath}`;
-
-    const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(buffer) });
-    const pdf = await loadingTask.promise;
-    const pageTexts: string[] = [];
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const content = await page.getTextContent();
-      const pageText = content.items
-        .map((item) => ('str' in item ? item.str : ''))
-        .join(' ');
-      pageTexts.push(pageText);
-    }
-    const extractedText = pageTexts.join('\n');
+    const { extractText } = await import('unpdf');
+    const { text: extractedText } = await extractText(new Uint8Array(buffer), { mergePages: true });
 
     if (!extractedText || extractedText.length < 50) {
       return NextResponse.json(
@@ -59,63 +40,34 @@ export async function POST(request: NextRequest) {
     console.log('Extracted text length:', extractedText.length);
     console.log('First 500 chars:', extractedText.substring(0, 500));
 
+    const aiModel = model === 'anthropic'
+      ? anthropic('claude-3-5-sonnet-20241022')
+      : openai('gpt-4o');
+
+    console.log(`Using ${model === 'anthropic' ? 'Anthropic Claude' : 'OpenAI GPT-4o'} for transaction extraction...`);
+
     // Use AI to parse and categorize transactions
-    let statement;
-    
-    if (model === 'anthropic') {
-      console.log('Using Anthropic Claude for transaction extraction...');
-      
-      const result = await generateObject({
-        model: anthropic('claude-3-5-sonnet-20241022'),
-        schema: bankStatementSchema,
-        prompt: `You are analyzing a bank statement from Virgin Money credit card. 
-        
-Extract ALL transactions from this statement and categorize each one appropriately.
+    const result = await generateText({
+      model: aiModel,
+      output: Output.object({ schema: bankStatementSchema }),
+      prompt: `You are analyzing a bank statement. Extract ALL transactions and respond with a JSON object that strictly conforms to the following JSON Schema:
+
+${JSON.stringify(bankStatementJsonSchema, null, 2)}
 
 Bank Statement Text:
 ${extractedText}
 
 Instructions:
-1. Extract every transaction with: date, description (merchant name), amount, and category
-2. For amounts: use positive numbers for spending/debits, negative for refunds/credits
-3. Categories: groceries, dining, transportation, entertainment, utilities, healthcare, shopping, travel, bills, transfer, income, other
-4. Date format: YYYY-MM-DD
-5. Currency: Usually GBP for Virgin Money unless stated otherwise
-6. Include statement period (start/end dates) if available
-7. Skip account balance lines, only include actual transactions
+- Extract every transaction with: date (YYYY-MM-DD), description (merchant name), amount, and category
+- For amounts: use positive numbers for spending/debits, negative for refunds/credits
+- Currency: usually GBP unless stated otherwise in the statement
+- Include statementPeriod start/end dates if shown, otherwise use empty strings
+- Include last 4 digits of accountNumber if shown, otherwise use empty string
+- Skip balance summary lines — only include actual transactions
+- Be thorough and extract EVERY transaction you can find`,
+    });
 
-Be thorough and extract EVERY transaction you can find.`,
-      });
-
-      statement = result.object;
-    } else {
-      // OpenAI (default)
-      console.log('Using OpenAI GPT-4o for transaction extraction...');
-      
-      const result = await generateObject({
-        model: openai('gpt-4o'),
-        schema: bankStatementSchema,
-        prompt: `You are analyzing a bank statement from Virgin Money credit card. 
-        
-Extract ALL transactions from this statement and categorize each one appropriately.
-
-Bank Statement Text:
-${extractedText}
-
-Instructions:
-1. Extract every transaction with: date, description (merchant name), amount, and category
-2. For amounts: use positive numbers for spending/debits, negative for refunds/credits
-3. Categories: groceries, dining, transportation, entertainment, utilities, healthcare, shopping, travel, bills, transfer, income, other
-4. Date format: YYYY-MM-DD
-5. Currency: Usually GBP for Virgin Money unless stated otherwise
-6. Include statement period (start/end dates) if available
-7. Skip account balance lines, only include actual transactions
-
-Be thorough and extract EVERY transaction you can find.`,
-      });
-
-      statement = result.object;
-    }
+    const statement = result.output;
 
     console.log(`Extracted ${statement.transactions.length} transactions`);
 

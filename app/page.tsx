@@ -1,12 +1,26 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { ReceiptUploader } from "@/components/receipt-uploader";
 import { ReceiptDisplay } from "@/components/receipt-display";
-import { SpendingSummary } from "@/components/spending-summary";
-import { ReceiptHistory } from "@/components/receipt-history";
-import { BankStatementUploader } from "@/components/bank-statement-uploader";
-import { TransactionHistory } from "@/components/transaction-history";
+
+const SpendingSummary = dynamic(
+  () => import("@/components/spending-summary").then((m) => ({ default: m.SpendingSummary })),
+  { ssr: false }
+);
+const ReceiptHistory = dynamic(
+  () => import("@/components/receipt-history").then((m) => ({ default: m.ReceiptHistory })),
+  { ssr: false }
+);
+const BankStatementUploader = dynamic(
+  () => import("@/components/bank-statement-uploader").then((m) => ({ default: m.BankStatementUploader })),
+  { ssr: false }
+);
+const TransactionHistory = dynamic(
+  () => import("@/components/transaction-history").then((m) => ({ default: m.TransactionHistory })),
+  { ssr: false }
+);
 import { Receipt } from "@/lib/schemas";
 import {
   Receipt as ReceiptIcon,

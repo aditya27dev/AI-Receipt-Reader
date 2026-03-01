@@ -40,3 +40,6 @@ export const receiptSchema = z.object({
 
 export type Receipt = z.infer<typeof receiptSchema>;
 export type ReceiptItem = z.infer<typeof receiptItemSchema>;
+
+// JSON Schema for embedding in AI prompts — single source of truth
+export const receiptJsonSchema = z.toJSONSchema(receiptSchema);
