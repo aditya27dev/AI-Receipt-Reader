@@ -1,83 +1,107 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { StoredReceipt } from '@/lib/db';
-import { format } from 'date-fns';
-import { Calendar, Loader2, ImageIcon, Trash2 } from 'lucide-react';
+import { useEffect, useState } from "react";
+import { StoredReceipt } from "@/lib/db";
+import { format } from "date-fns";
+import { Calendar, Loader2, ImageIcon, Trash2 } from "lucide-react";
 
 // Get currency symbol from currency code
 function getCurrencySymbol(currencyCode: string): string {
   const symbols: Record<string, string> = {
-    'USD': '$',
-    'GBP': '£',
-    'EUR': '€',
-    'JPY': '¥',
-    'CNY': '¥',
-    'INR': '₹',
-    'AUD': 'A$',
-    'CAD': 'C$',
+    USD: "$",
+    GBP: "£",
+    EUR: "€",
+    JPY: "¥",
+    CNY: "¥",
+    INR: "₹",
+    AUD: "A$",
+    CAD: "C$",
   };
-  return symbols[currencyCode?.toUpperCase()] || currencyCode || '$';
+  return symbols[currencyCode?.toUpperCase()] || currencyCode || "$";
 }
 
 const categoryColors: Record<string, string> = {
-  groceries: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
-  dining: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
-  transportation: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
-  entertainment: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
-  utilities: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
-  healthcare: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
-  shopping: 'bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300',
-  other: 'bg-zinc-100 text-zinc-800 dark:bg-zinc-900/30 dark:text-zinc-300',
+  groceries:
+    "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+  dining:
+    "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300",
+  transportation:
+    "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+  entertainment:
+    "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
+  utilities:
+    "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
+  healthcare: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
+  shopping: "bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300",
+  other: "bg-zinc-100 text-zinc-800 dark:bg-zinc-900/30 dark:text-zinc-300",
 };
 
 export function ReceiptHistory() {
   const [receipts, setReceipts] = useState<StoredReceipt[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedReceipt, setSelectedReceipt] = useState<StoredReceipt | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [selectedReceipt, setSelectedReceipt] = useState<StoredReceipt | null>(
+    null,
+  );
   const [deleting, setDeleting] = useState(false);
+  const PAGE_SIZE = 20;
 
   useEffect(() => {
-    fetchReceipts();
+    fetchReceipts(1, true);
   }, []);
 
-  const fetchReceipts = async () => {
+  const fetchReceipts = async (pageNum: number, replace = false) => {
+    replace ? setLoading(true) : setLoadingMore(true);
     try {
-      const response = await fetch('/api/receipts');
+      const response = await fetch(
+        `/api/receipts?page=${pageNum}&limit=${PAGE_SIZE}`,
+      );
       const data = await response.json();
-      setReceipts(data.receipts || []);
+      const fetched: StoredReceipt[] = data.receipts || [];
+      setReceipts((prev) => (replace ? fetched : [...prev, ...fetched]));
+      setHasMore(fetched.length === PAGE_SIZE);
+      setPage(pageNum);
     } catch (error) {
-      console.error('Error fetching receipts:', error);
+      console.error("Error fetching receipts:", error);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
   const handleDelete = async (receiptId: string) => {
-    if (!confirm('Are you sure you want to delete this receipt? This action cannot be undone.')) {
+    if (
+      !confirm(
+        "Are you sure you want to delete this receipt? This action cannot be undone.",
+      )
+    ) {
       return;
     }
 
     setDeleting(true);
     try {
       const response = await fetch(`/api/receipts/${receiptId}`, {
-        method: 'DELETE',
+        method: "DELETE",
       });
 
       if (!response.ok) {
-        throw new Error('Failed to delete receipt');
+        throw new Error("Failed to delete receipt");
       }
 
       // Remove from local state
-      setReceipts(prevReceipts => prevReceipts.filter(r => r.id !== receiptId));
-      
+      setReceipts((prevReceipts) =>
+        prevReceipts.filter((r) => r.id !== receiptId),
+      );
+
       // Clear selection if deleted receipt was selected
       if (selectedReceipt?.id === receiptId) {
         setSelectedReceipt(null);
       }
     } catch (error) {
-      console.error('Error deleting receipt:', error);
-      alert('Failed to delete receipt. Please try again.');
+      console.error("Error deleting receipt:", error);
+      alert("Failed to delete receipt. Please try again.");
     } finally {
       setDeleting(false);
     }
@@ -110,7 +134,8 @@ export function ReceiptHistory() {
       {/* Receipt List */}
       <div className="space-y-4">
         <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-          All Receipts ({receipts.length})
+          All Receipts ({receipts.length}
+          {hasMore ? "+" : ""})
         </h2>
         <div className="space-y-3 max-h-[calc(100vh-250px)] overflow-y-auto pr-2">
           {receipts.map((receipt) => {
@@ -121,8 +146,8 @@ export function ReceiptHistory() {
                 onClick={() => setSelectedReceipt(receipt)}
                 className={`w-full text-left p-4 rounded-lg border transition-all ${
                   selectedReceipt?.id === receipt.id
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20 shadow-md'
-                    : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-blue-300 dark:hover:border-blue-700'
+                    ? "border-blue-500 bg-blue-50 dark:bg-blue-950/20 shadow-md"
+                    : "border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-blue-300 dark:hover:border-blue-700"
                 }`}
               >
                 <div className="flex gap-4">
@@ -141,7 +166,7 @@ export function ReceiptHistory() {
                       <ImageIcon className="w-8 h-8 text-zinc-400" />
                     </div>
                   )}
-                  
+
                   {/* Receipt Info */}
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 truncate">
@@ -149,14 +174,18 @@ export function ReceiptHistory() {
                     </h3>
                     <div className="flex items-center gap-2 mt-1 text-sm text-zinc-600 dark:text-zinc-400">
                       <Calendar className="w-4 h-4" />
-                      <span>{format(new Date(receipt.date), 'MMM dd, yyyy')}</span>
+                      <span>
+                        {format(new Date(receipt.date), "MMM dd, yyyy")}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2 mt-2">
                       <span className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
-                        {currencySymbol}{receipt.total.toFixed(2)}
+                        {currencySymbol}
+                        {receipt.total.toFixed(2)}
                       </span>
                       <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                        {receipt.items.length} item{receipt.items.length !== 1 ? 's' : ''}
+                        {receipt.items.length} item
+                        {receipt.items.length !== 1 ? "s" : ""}
                       </span>
                     </div>
                   </div>
@@ -164,6 +193,21 @@ export function ReceiptHistory() {
               </button>
             );
           })}
+          {hasMore && (
+            <button
+              onClick={() => fetchReceipts(page + 1)}
+              disabled={loadingMore}
+              className="w-full py-3 text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 border border-dashed border-blue-300 dark:border-blue-700 rounded-lg transition-colors disabled:opacity-50"
+            >
+              {loadingMore ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Loading…
+                </span>
+              ) : (
+                "Load More"
+              )}
+            </button>
+          )}
         </div>
       </div>
 
@@ -187,9 +231,13 @@ export function ReceiptHistory() {
             <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-6 text-white">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <h2 className="text-2xl font-bold mb-1">{selectedReceipt.merchantName}</h2>
+                  <h2 className="text-2xl font-bold mb-1">
+                    {selectedReceipt.merchantName}
+                  </h2>
                   {selectedReceipt.merchantAddress && (
-                    <p className="text-blue-100 text-sm">{selectedReceipt.merchantAddress}</p>
+                    <p className="text-blue-100 text-sm">
+                      {selectedReceipt.merchantAddress}
+                    </p>
                   )}
                 </div>
                 <button
@@ -199,7 +247,7 @@ export function ReceiptHistory() {
                   title="Delete receipt"
                 >
                   <Trash2 className="w-4 h-4" />
-                  {deleting ? 'Deleting...' : 'Delete'}
+                  {deleting ? "Deleting..." : "Delete"}
                 </button>
               </div>
             </div>
@@ -208,14 +256,18 @@ export function ReceiptHistory() {
             <div className="p-6 border-b border-zinc-200 dark:border-zinc-800">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span className="text-zinc-600 dark:text-zinc-400">Date:</span>
+                  <span className="text-zinc-600 dark:text-zinc-400">
+                    Date:
+                  </span>
                   <p className="font-medium text-zinc-900 dark:text-zinc-100">
-                    {format(new Date(selectedReceipt.date), 'MMM dd, yyyy')}
+                    {format(new Date(selectedReceipt.date), "MMM dd, yyyy")}
                     {selectedReceipt.time && ` at ${selectedReceipt.time}`}
                   </p>
                 </div>
                 <div>
-                  <span className="text-zinc-600 dark:text-zinc-400">Payment:</span>
+                  <span className="text-zinc-600 dark:text-zinc-400">
+                    Payment:
+                  </span>
                   <p className="font-medium text-zinc-900 dark:text-zinc-100 capitalize">
                     {selectedReceipt.paymentMethod}
                   </p>
@@ -230,7 +282,9 @@ export function ReceiptHistory() {
               </h3>
               <div className="space-y-3">
                 {selectedReceipt.items.map((item, index) => {
-                  const currencySymbol = getCurrencySymbol(selectedReceipt.currency);
+                  const currencySymbol = getCurrencySymbol(
+                    selectedReceipt.currency,
+                  );
                   return (
                     <div
                       key={index}
@@ -238,20 +292,26 @@ export function ReceiptHistory() {
                     >
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <p className="font-medium text-zinc-900 dark:text-zinc-100">{item.name}</p>
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${categoryColors[item.category]}`}>
+                          <p className="font-medium text-zinc-900 dark:text-zinc-100">
+                            {item.name}
+                          </p>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-xs font-medium ${categoryColors[item.category]}`}
+                          >
                             {item.category}
                           </span>
                         </div>
                         {item.quantity && item.unitPrice && (
                           <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                            {item.quantity} × {currencySymbol}{item.unitPrice.toFixed(2)}
+                            {item.quantity} × {currencySymbol}
+                            {item.unitPrice.toFixed(2)}
                           </p>
                         )}
                       </div>
                       <div className="text-right">
                         <p className="font-semibold text-zinc-900 dark:text-zinc-100">
-                          {currencySymbol}{item.totalPrice.toFixed(2)}
+                          {currencySymbol}
+                          {item.totalPrice.toFixed(2)}
                         </p>
                       </div>
                     </div>
@@ -267,7 +327,8 @@ export function ReceiptHistory() {
                   <div className="flex justify-between text-sm text-zinc-700 dark:text-zinc-300">
                     <span>Subtotal</span>
                     <span>
-                      {getCurrencySymbol(selectedReceipt.currency)}{selectedReceipt.subtotal.toFixed(2)}
+                      {getCurrencySymbol(selectedReceipt.currency)}
+                      {selectedReceipt.subtotal.toFixed(2)}
                     </span>
                   </div>
                 )}
@@ -275,14 +336,16 @@ export function ReceiptHistory() {
                   <div className="flex justify-between text-sm text-zinc-700 dark:text-zinc-300">
                     <span>Tax</span>
                     <span>
-                      {getCurrencySymbol(selectedReceipt.currency)}{selectedReceipt.tax.toFixed(2)}
+                      {getCurrencySymbol(selectedReceipt.currency)}
+                      {selectedReceipt.tax.toFixed(2)}
                     </span>
                   </div>
                 )}
                 <div className="flex justify-between text-lg font-bold text-zinc-900 dark:text-zinc-100 pt-2 border-t border-zinc-300 dark:border-zinc-700">
                   <span>Total</span>
                   <span>
-                    {getCurrencySymbol(selectedReceipt.currency)}{selectedReceipt.total.toFixed(2)}
+                    {getCurrencySymbol(selectedReceipt.currency)}
+                    {selectedReceipt.total.toFixed(2)}
                   </span>
                 </div>
               </div>

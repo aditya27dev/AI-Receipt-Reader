@@ -1,102 +1,115 @@
-import { generateText, Output } from 'ai';
-import { openai } from '@ai-sdk/openai';
-import { anthropic } from '@ai-sdk/anthropic';
-import { receiptSchema, receiptJsonSchema } from '@/lib/schemas';
+import { streamObject } from 'ai';
+import { receiptSchema } from '@/lib/schemas';
 import { saveReceipt, generateImageHash, findReceiptByImageHash } from '@/lib/db';
-import { NextRequest, NextResponse } from 'next/server';
+import { getVisionModel } from '@/lib/ai';
+import { rateLimit } from '@/lib/ratelimit';
+import { NextRequest } from 'next/server';
 
-// Use Node.js runtime for ChromaDB compatibility
 export const runtime = 'nodejs';
 export const maxDuration = 30;
 
+const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/gif'];
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10 MB
+
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown';
+  const rl = rateLimit(ip, { limit: 20, windowMs: 60_000 });
+  if (!rl.success) {
+    return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
+      status: 429,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  let body: {
+    image?: string;
+    mimeType?: string;
+    model?: string;
+    imageDataUrl?: string;
+    imageHash?: string;
+  };
   try {
-    const formData = await req.formData();
-    const file = formData.get('image') as File;
-    const imageDataUrl = formData.get('imageDataUrl') as string || undefined;
-    const modelProvider = formData.get('model') as string || 'openai'; // 'openai' or 'anthropic'
-    const forceReprocess = formData.get('forceReprocess') === 'true';
+    body = await req.json();
+  } catch {
+    return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
 
-    if (!file) {
-      return NextResponse.json(
-        { error: 'No image file provided' },
-        { status: 400 }
-      );
-    }
+  const { image, mimeType, model: modelProvider = 'openai', imageDataUrl, imageHash } = body;
 
-    // Convert file to base64
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    const base64Image = buffer.toString('base64');
-    const mimeType = file.type;
+  if (!image || !mimeType) {
+    return new Response(JSON.stringify({ error: 'Missing image or mimeType' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
 
-    // Generate image hash for duplicate detection
-    const imageHash = generateImageHash(buffer);
-    
-    // Check if this receipt has been uploaded before (unless forced to reprocess)
-    if (!forceReprocess) {
-      const existingReceipt = await findReceiptByImageHash(imageHash);
-      if (existingReceipt) {
-        return NextResponse.json({
-          success: true,
-          duplicate: true,
-          receipt: existingReceipt,
-          message: 'This receipt has already been uploaded. Use the existing data or force reprocess to extract again.',
-        });
-      }
-    }
+  if (!ALLOWED_MIME_TYPES.includes(mimeType)) {
+    return new Response(JSON.stringify({ error: 'Unsupported image type' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
 
-    // Choose model based on provider
-    const model = modelProvider === 'anthropic'
-      ? anthropic('claude-3-5-sonnet-20241022')
-      : openai('gpt-4o');
+  if ((image.length * 3) / 4 > MAX_IMAGE_BYTES) {
+    return new Response(JSON.stringify({ error: 'Image exceeds 10 MB limit' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
 
-    const result = await generateText({
+  const allowedProviders = ['openai', 'anthropic'] as const;
+  if (!allowedProviders.includes(modelProvider as 'openai' | 'anthropic')) {
+    return new Response(JSON.stringify({ error: 'Invalid model provider' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  try {
+    const model = getVisionModel(modelProvider as 'openai' | 'anthropic');
+
+    const result = streamObject({
       model,
-      output: Output.object({ schema: receiptSchema }),
+      schema: receiptSchema,
       messages: [
         {
           role: 'user',
           content: [
             {
               type: 'text',
-              text: `Analyze this receipt image and extract all information. Respond with a JSON object that strictly conforms to the following JSON Schema:
-
-${JSON.stringify(receiptJsonSchema, null, 2)}
+              text: `Analyze this receipt image and extract all information into the provided schema.
 
 Instructions:
 - Use ISO date format (YYYY-MM-DD) for the date field
-- DETECT CURRENCY from the receipt symbols: £ = GBP, $ = USD, € = EUR, ¥ = JPY
-- Use empty string "" for any text field not visible on the receipt
-- Use 0 for any numeric field not visible on the receipt
+- DETECT CURRENCY from symbols: £=GBP, $=USD, €=EUR, ¥=JPY
+- Use empty string "" for any text field not visible
+- Use 0 for any numeric field not visible
 - Use 1 for quantity and 0 for unitPrice when not shown
-- Use "other" for paymentMethod when not shown
-- Make your best reasonable guess for any unclear information`,
+- Use "other" for paymentMethod when not shown`,
             },
             {
               type: 'image',
-              image: `data:${mimeType};base64,${base64Image}`,
+              image: `data:${mimeType};base64,${image}`,
             },
           ],
         },
       ],
+      onFinish: ({ object }) => {
+        if (object) {
+          saveReceipt(object, imageDataUrl, imageHash).catch(console.error);
+        }
+      },
     });
 
-    const receipt = result.output;
-    console.log('Extracted receipt:', receipt);
-
-    // Save to database
-    const savedReceipt = await saveReceipt(receipt, imageDataUrl, imageHash);
-
-    return NextResponse.json({
-      success: true,
-      receipt: savedReceipt,
-    });
+    return result.toTextStreamResponse();
   } catch (error) {
     console.error('Receipt extraction error:', error);
-    return NextResponse.json(
-      { error: 'Failed to process receipt', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
+    return new Response(JSON.stringify({ error: 'Failed to process receipt' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 }

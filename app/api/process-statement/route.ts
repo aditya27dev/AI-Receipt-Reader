@@ -1,98 +1,101 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { generateText, Output } from 'ai';
-import { openai } from '@ai-sdk/openai';
-import { anthropic } from '@ai-sdk/anthropic';
-import { bankStatementSchema, bankStatementJsonSchema } from '@/lib/transaction-schemas';
+import { NextRequest } from 'next/server';
+import { streamObject } from 'ai';
+import { bankStatementSchema } from '@/lib/transaction-schemas';
 import { saveTransactions } from '@/lib/db';
+import { getVisionModel } from '@/lib/ai';
+import { rateLimit } from '@/lib/ratelimit';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
+const MAX_PDF_BYTES = 20 * 1024 * 1024; // 20 MB base64-encoded
+
 export async function POST(request: NextRequest) {
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown';
+  const rl = rateLimit(ip, { limit: 20, windowMs: 60_000 });
+  if (!rl.success) {
+    return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
+      status: 429,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  let body: { file?: string; model?: string };
   try {
-    const formData = await request.formData();
-    const file = formData.get('file') as File;
-    const model = formData.get('model') as string || 'openai';
+    body = await request.json();
+  } catch {
+    return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
 
-    if (!file) {
-      return NextResponse.json(
-        { error: 'No file provided' },
-        { status: 400 }
-      );
-    }
+  const { file: fileBase64, model: modelProvider = 'openai' } = body;
 
-    // Convert file to buffer
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+  if (!fileBase64) {
+    return new Response(JSON.stringify({ error: 'Missing file (base64)' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
 
-    // Extract text from PDF
-    console.log('Extracting text from PDF...');
+  if (fileBase64.length > MAX_PDF_BYTES) {
+    return new Response(JSON.stringify({ error: 'PDF exceeds 20 MB limit' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const allowedProviders = ['openai', 'anthropic'] as const;
+  if (!allowedProviders.includes(modelProvider as 'openai' | 'anthropic')) {
+    return new Response(JSON.stringify({ error: 'Invalid model provider' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  try {
+    const buffer = Buffer.from(fileBase64, 'base64');
+
     const { extractText } = await import('unpdf');
     const { text: extractedText } = await extractText(new Uint8Array(buffer), { mergePages: true });
 
     if (!extractedText || extractedText.length < 50) {
-      return NextResponse.json(
-        { error: 'Could not extract text from PDF. Please ensure it is a valid bank statement.' },
-        { status: 400 }
-      );
+      return new Response(JSON.stringify({ error: 'Could not extract text from PDF' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
-    console.log('Extracted text length:', extractedText.length);
-    console.log('First 500 chars:', extractedText.substring(0, 500));
+    const model = getVisionModel(modelProvider as 'openai' | 'anthropic');
+    const statementId = `stmt_${Date.now()}`;
 
-    const aiModel = model === 'anthropic'
-      ? anthropic('claude-3-5-sonnet-20241022')
-      : openai('gpt-4o');
-
-    console.log(`Using ${model === 'anthropic' ? 'Anthropic Claude' : 'OpenAI GPT-4o'} for transaction extraction...`);
-
-    // Use AI to parse and categorize transactions
-    const result = await generateText({
-      model: aiModel,
-      output: Output.object({ schema: bankStatementSchema }),
-      prompt: `You are analyzing a bank statement. Extract ALL transactions and respond with a JSON object that strictly conforms to the following JSON Schema:
-
-${JSON.stringify(bankStatementJsonSchema, null, 2)}
+    const result = streamObject({
+      model,
+      schema: bankStatementSchema,
+      prompt: `You are analyzing a bank statement. Extract ALL transactions.
 
 Bank Statement Text:
 ${extractedText}
 
 Instructions:
-- Extract every transaction with: date (YYYY-MM-DD), description (merchant name), amount, and category
-- For amounts: use positive numbers for spending/debits, negative for refunds/credits
-- Currency: usually GBP unless stated otherwise in the statement
-- Include statementPeriod start/end dates if shown, otherwise use empty strings
-- Include last 4 digits of accountNumber if shown, otherwise use empty string
-- Skip balance summary lines — only include actual transactions
-- Be thorough and extract EVERY transaction you can find`,
+- Extract every transaction with: date (YYYY-MM-DD), description, amount, and category
+- Positive amounts = spending/debits, negative = refunds/credits
+- Currency: GBP unless stated otherwise
+- Skip balance summary lines — only include actual transactions`,
+      onFinish: ({ object }) => {
+        if (object?.transactions?.length) {
+          saveTransactions(object.transactions, statementId).catch(console.error);
+        }
+      },
     });
 
-    const statement = result.output;
-
-    console.log(`Extracted ${statement.transactions.length} transactions`);
-
-    if (statement.transactions.length === 0) {
-      return NextResponse.json(
-        { error: 'No transactions found in the statement. Please check if the PDF is readable.' },
-        { status: 400 }
-      );
-    }
-
-    // Save transactions to ChromaDB
-    const statementId = `stmt_${Date.now()}`;
-    await saveTransactions(statement.transactions, statementId);
-
-    return NextResponse.json({
-      success: true,
-      transactions: statement.transactions,
-      count: statement.transactions.length,
-      statementPeriod: statement.statementPeriod,
-    });
+    return result.toTextStreamResponse();
   } catch (error) {
     console.error('Error processing bank statement:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to process bank statement' },
-      { status: 500 }
-    );
+    return new Response(JSON.stringify({ error: 'Failed to process bank statement' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 }

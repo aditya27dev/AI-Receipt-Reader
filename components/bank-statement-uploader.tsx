@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, AlertCircle, FileText, CheckCircle } from "lucide-react";
+import { experimental_useObject as useObject } from "@ai-sdk/react";
+import { bankStatementSchema } from "@/lib/transaction-schemas";
+import { Loader2, AlertCircle, FileText, CheckCircle, X } from "lucide-react";
 
 interface BankStatementUploaderProps {
   onStatementProcessed: () => void;
@@ -10,98 +12,75 @@ interface BankStatementUploaderProps {
 export function BankStatementUploader({
   onStatementProcessed,
 }: BankStatementUploaderProps) {
-  const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [transactionCount, setTransactionCount] = useState(0);
+  const [finalCount, setFinalCount] = useState(0);
   const [selectedModel, setSelectedModel] = useState<"openai" | "anthropic">(
     "openai",
   );
   const [isDragging, setIsDragging] = useState(false);
+
+  const {
+    object: partialStatement,
+    submit,
+    isLoading,
+  } = useObject({
+    api: "/api/process-statement",
+    schema: bankStatementSchema,
+    onFinish: ({ object }) => {
+      const count = object?.transactions?.length ?? 0;
+      setFinalCount(count);
+      setSuccess(true);
+      onStatementProcessed();
+    },
+    onError: () => setError("Failed to process statement. Please try again."),
+  });
+
+  const liveCount = partialStatement?.transactions?.length ?? 0;
 
   const handleFile = async (file: File) => {
     if (!file.type.includes("pdf")) {
       setError("Please upload a PDF file");
       return;
     }
-
-    setIsProcessing(true);
     setError(null);
     setSuccess(false);
 
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("model", selectedModel);
-
-      const response = await fetch("/api/process-statement", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to process statement");
-      }
-
-      const data = await response.json();
-
-      setSuccess(true);
-      setTransactionCount(data.count);
-      onStatementProcessed();
-
-      // Auto-hide success message after 5 seconds
-      setTimeout(() => {
-        setSuccess(false);
-      }, 5000);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-      console.error("Upload error:", err);
-    } finally {
-      setIsProcessing(false);
-    }
+    const arrayBuffer = await file.arrayBuffer();
+    const base64 = Buffer.from(arrayBuffer).toString("base64");
+    submit({ file: base64, model: selectedModel });
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    await handleFile(file);
+    if (file) await handleFile(file);
   };
 
   const handleDragEnter = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!isProcessing) {
-      setIsDragging(true);
-    }
+    if (!isLoading) setIsDragging(true);
   };
-
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
   };
-
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
   };
-
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
-
-    if (isProcessing) return;
-
+    if (isLoading) return;
     const file = e.dataTransfer.files?.[0];
     if (!file) return;
-
     if (!file.type.includes("pdf")) {
       setError("Please upload a PDF file");
       return;
     }
-
     await handleFile(file);
   };
 
@@ -126,7 +105,7 @@ export function BankStatementUploader({
               setSelectedModel(e.target.value as "openai" | "anthropic")
             }
             className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-            disabled={isProcessing}
+            disabled={isLoading}
           >
             <option value="openai">GPT-4o (OpenAI)</option>
             <option value="anthropic">Claude 3.5 Sonnet</option>
@@ -140,7 +119,7 @@ export function BankStatementUploader({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
-          isProcessing
+          isLoading
             ? "border-zinc-400 bg-zinc-50 dark:bg-zinc-900 cursor-not-allowed"
             : isDragging
               ? "border-blue-500 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-500"
@@ -148,14 +127,16 @@ export function BankStatementUploader({
         }`}
       >
         <div className="flex flex-col items-center justify-center pt-5 pb-6">
-          {isProcessing ? (
+          {isLoading ? (
             <>
-              <Loader2 className="w-12 h-12 mb-4 text-zinc-500 animate-spin" />
-              <p className="mb-2 text-sm text-zinc-700 dark:text-zinc-300">
-                <span className="font-semibold">Processing statement...</span>
+              <Loader2 className="w-12 h-12 mb-4 text-blue-500 animate-spin" />
+              <p className="mb-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                Processing statement…
               </p>
-              <p className="text-xs text-zinc-500 dark:text-zinc-500">
-                Extracting and categorizing transactions with AI
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                {liveCount > 0
+                  ? `${liveCount} transaction${liveCount !== 1 ? "s" : ""} found so far…`
+                  : "Extracting and categorising transactions with AI"}
               </p>
             </>
           ) : (
@@ -176,22 +157,28 @@ export function BankStatementUploader({
           className="hidden"
           accept="application/pdf,.pdf"
           onChange={handleFileChange}
-          disabled={isProcessing}
+          disabled={isLoading}
         />
       </label>
 
       {success && (
         <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-start gap-2 dark:bg-green-900/20 dark:border-green-800">
           <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
-          <div>
+          <div className="flex-1">
             <p className="text-sm font-medium text-green-800 dark:text-green-300">
               Success!
             </p>
             <p className="text-sm text-green-700 dark:text-green-400">
-              Extracted and saved {transactionCount} transactions. Check the
-              Transactions tab to view them.
+              Extracted and saved {finalCount} transaction
+              {finalCount !== 1 ? "s" : ""}. Check the Transactions tab.
             </p>
           </div>
+          <button
+            onClick={() => setSuccess(false)}
+            className="text-green-600 hover:text-green-800 dark:text-green-400"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 

@@ -1,35 +1,20 @@
 import { deleteReceipt } from '@/lib/db';
+import { Result } from 'oxide.ts';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function DELETE(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { id } = await params;
-    
-    if (!id) {
-      return NextResponse.json(
-        { error: 'Receipt ID is required' },
-        { status: 400 }
-      );
-    }
+  const { id } = await params;
 
-    const success = await deleteReceipt(id);
-
-    if (!success) {
-      return NextResponse.json(
-        { error: 'Failed to delete receipt' },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('Error in DELETE /api/receipts/[id]:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+  if (!id) {
+    return NextResponse.json({ error: 'Receipt ID is required' }, { status: 400 });
   }
+
+  const result = await Result.safe(deleteReceipt(id));
+  if (result.isErr()) return NextResponse.json({ error: 'Failed to delete receipt' }, { status: 500 });
+  if (!result.unwrap()) return NextResponse.json({ error: 'Receipt not found' }, { status: 404 });
+
+  return NextResponse.json({ success: true });
 }

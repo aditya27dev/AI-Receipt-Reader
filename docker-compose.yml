@@ -10,7 +10,6 @@ services:
       - chromadb-data:/chroma/chroma
     environment:
       - ANONYMIZED_TELEMETRY=False
-      - ALLOW_RESET=True
     networks:
       - receipt-network
     restart: unless-stopped

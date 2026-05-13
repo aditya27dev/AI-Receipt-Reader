@@ -6,20 +6,39 @@ import { ReceiptUploader } from "@/components/receipt-uploader";
 import { ReceiptDisplay } from "@/components/receipt-display";
 
 const SpendingSummary = dynamic(
-  () => import("@/components/spending-summary").then((m) => ({ default: m.SpendingSummary })),
-  { ssr: false }
+  () =>
+    import("@/components/spending-summary").then((m) => ({
+      default: m.SpendingSummary,
+    })),
+  { ssr: false },
 );
 const ReceiptHistory = dynamic(
-  () => import("@/components/receipt-history").then((m) => ({ default: m.ReceiptHistory })),
-  { ssr: false }
+  () =>
+    import("@/components/receipt-history").then((m) => ({
+      default: m.ReceiptHistory,
+    })),
+  { ssr: false },
 );
 const BankStatementUploader = dynamic(
-  () => import("@/components/bank-statement-uploader").then((m) => ({ default: m.BankStatementUploader })),
-  { ssr: false }
+  () =>
+    import("@/components/bank-statement-uploader").then((m) => ({
+      default: m.BankStatementUploader,
+    })),
+  { ssr: false },
 );
 const TransactionHistory = dynamic(
-  () => import("@/components/transaction-history").then((m) => ({ default: m.TransactionHistory })),
-  { ssr: false }
+  () =>
+    import("@/components/transaction-history").then((m) => ({
+      default: m.TransactionHistory,
+    })),
+  { ssr: false },
+);
+const BudgetManager = dynamic(
+  () =>
+    import("@/components/budget-manager").then((m) => ({
+      default: m.BudgetManager,
+    })),
+  { ssr: false },
 );
 import { Receipt } from "@/lib/schemas";
 import {
@@ -27,11 +46,12 @@ import {
   BarChart3,
   History,
   FileText,
+  Banknote,
 } from "lucide-react";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<
-    "scan" | "transactions" | "analytics" | "history"
+    "scan" | "transactions" | "analytics" | "history" | "budget"
   >("scan");
   const [latestReceipt, setLatestReceipt] = useState<Receipt | null>(null);
   const [refreshHistory, setRefreshHistory] = useState(0);
@@ -48,10 +68,6 @@ export default function Home() {
 
   const handleStatementProcessed = () => {
     setRefreshTransactions((prev) => prev + 1);
-    // Auto-switch to transactions view
-    setTimeout(() => {
-      // Stay on transactions tab to show results
-    }, 100);
   };
 
   return (
@@ -126,6 +142,20 @@ export default function Home() {
               <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400" />
             )}
           </button>
+          <button
+            onClick={() => setActiveTab("budget")}
+            className={`flex items-center gap-2 px-6 py-3 font-medium transition-colors relative ${
+              activeTab === "budget"
+                ? "text-blue-600 dark:text-blue-400"
+                : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200"
+            }`}
+          >
+            <Banknote className="w-5 h-5" />
+            Budgets
+            {activeTab === "budget" && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400" />
+            )}
+          </button>
         </div>
 
         {/* Content */}
@@ -174,6 +204,15 @@ export default function Home() {
           {activeTab === "history" && (
             <div>
               <ReceiptHistory key={refreshHistory} />
+            </div>
+          )}
+
+          {activeTab === "budget" && (
+            <div>
+              <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-6">
+                Monthly Budgets
+              </h2>
+              <BudgetManager />
             </div>
           )}
         </div>

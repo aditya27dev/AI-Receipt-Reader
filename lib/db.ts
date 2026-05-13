@@ -8,6 +8,7 @@ import { ChromaClient } from 'chromadb';
 import { Receipt } from './schemas';
 import { BankTransaction } from './transaction-schemas';
 import { createHash } from 'crypto';
+import { env } from './env';
 
 export interface StoredReceipt extends Receipt {
   id: string;
@@ -22,32 +23,40 @@ export interface StoredTransaction extends BankTransaction {
   statementId?: string;
 }
 
+export interface Budget {
+  id: string;
+  category: string;
+  limitAmount: number;
+  period: 'monthly';
+  createdAt: Date;
+}
+
 const COLLECTION_NAME = 'receipts';
 const TRANSACTIONS_COLLECTION_NAME = 'bank_transactions';
 
-// Initialize ChromaDB client
+const BUDGETS_COLLECTION_NAME = 'budgets';
+
 function getChromaClient() {
-  const chromaUrl = process.env.CHROMA_URL || 'http://localhost:8000';
-  return new ChromaClient({ path: chromaUrl });
+  return new ChromaClient({ path: env.CHROMA_URL });
 }
 
-// Generate embedding for receipt text using OpenAI
+/** Generate a single embedding */
 async function generateEmbedding(text: string): Promise<number[]> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  
-  if (!apiKey) {
-    throw new Error('OPENAI_API_KEY is not configured');
-  }
-  
+  const [embedding] = await generateEmbeddings([text]);
+  return embedding;
+}
+
+/** Batch-generate embeddings — single API call regardless of input size */
+async function generateEmbeddings(texts: string[]): Promise<number[][]> {
   const response = await fetch('https://api.openai.com/v1/embeddings', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
+      Authorization: `Bearer ${env.OPENAI_API_KEY}`,
     },
     body: JSON.stringify({
       model: 'text-embedding-3-small',
-      input: text,
+      input: texts,
     }),
   });
 
@@ -56,7 +65,9 @@ async function generateEmbedding(text: string): Promise<number[]> {
   }
 
   const data = await response.json();
-  return data.data[0].embedding;
+  return (data.data as { index: number; embedding: number[] }[])
+    .sort((a, b) => a.index - b.index)
+    .map(d => d.embedding);
 }
 
 // Create receipt text for embedding
@@ -64,14 +75,14 @@ function createReceiptText(receipt: Receipt): string {
   const itemsText = receipt.items
     .map(item => `${item.name} (${item.category}): $${item.totalPrice}`)
     .join(', ');
-  
+
   return `Receipt from ${receipt.merchantName} on ${receipt.date}. Items: ${itemsText}. Total: $${receipt.total}`;
 }
 
 // Initialize ChromaDB collection
 export async function createReceiptsTable() {
   const client = getChromaClient();
-  
+
   try {
     // Try to delete existing collection if it exists
     try {
@@ -80,7 +91,7 @@ export async function createReceiptsTable() {
     } catch {
       // Collection doesn't exist, that's fine
     }
-    
+
     // Create new collection without embedding function (we provide embeddings manually)
     await client.createCollection({
       name: COLLECTION_NAME,
@@ -93,7 +104,6 @@ export async function createReceiptsTable() {
   }
 }
 
-// Helper to ensure collection exists and is properly configured
 async function getReceiptsCollection(client: ReturnType<typeof getChromaClient>) {
   return client.getOrCreateCollection({
     name: COLLECTION_NAME,
@@ -101,7 +111,6 @@ async function getReceiptsCollection(client: ReturnType<typeof getChromaClient>)
   });
 }
 
-// Helper to ensure transactions collection exists
 async function getTransactionsCollection(client: ReturnType<typeof getChromaClient>) {
   return client.getOrCreateCollection({
     name: TRANSACTIONS_COLLECTION_NAME,
@@ -109,20 +118,49 @@ async function getTransactionsCollection(client: ReturnType<typeof getChromaClie
   });
 }
 
+async function getBudgetsCollection(client: ReturnType<typeof getChromaClient>) {
+  return client.getOrCreateCollection({
+    name: BUDGETS_COLLECTION_NAME,
+    metadata: { description: 'Budget limits per category' },
+  });
+}
+
+/** Deserialise a ChromaDB metadata row into a StoredReceipt */
+function metadataToReceipt(id: string, metadata: Record<string, string>): StoredReceipt {
+  let items: Receipt['items'] = [];
+  try { items = JSON.parse(metadata?.itemsJson || '[]'); } catch { items = []; }
+  return {
+    id,
+    merchantName: metadata?.merchantName || '',
+    merchantAddress: metadata?.merchantAddress || '',
+    date: metadata?.date || '',
+    time: metadata?.time || '',
+    items,
+    subtotal: metadata?.subtotal ? parseFloat(metadata.subtotal) : 0,
+    tax: metadata?.tax ? parseFloat(metadata.tax) : 0,
+    total: parseFloat(metadata?.total || '0'),
+    paymentMethod: (metadata?.paymentMethod as StoredReceipt['paymentMethod']) || 'other',
+    currency: metadata?.currency || 'USD',
+    imageUrl: metadata?.imageUrl || undefined,
+    imageHash: metadata?.imageHash || undefined,
+    createdAt: new Date(metadata?.createdAt || Date.now()),
+  };
+}
+
 // Save a receipt to ChromaDB
 export async function saveReceipt(receipt: Receipt, imageUrl?: string, imageHash?: string): Promise<StoredReceipt> {
   const client = getChromaClient();
-  
+
   // Get or create collection - we provide embeddings manually via OpenAI
   const collection = await getReceiptsCollection(client);
 
   const id = `receipt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   const createdAt = new Date();
-  
+
   // Generate embedding for semantic search
   const receiptText = createReceiptText(receipt);
   const embedding = await generateEmbedding(receiptText);
-  
+
   // Store receipt with metadata
   await collection.add({
     ids: [id],
@@ -144,14 +182,8 @@ export async function saveReceipt(receipt: Receipt, imageUrl?: string, imageHash
     }],
     documents: [receiptText],
   });
-  
-  return {
-    id,
-    ...receipt,
-    createdAt,
-    imageUrl,
-    imageHash,
-  };
+
+  return { id, ...receipt, imageUrl, imageHash, createdAt };
 }
 
 // Generate hash from image buffer for duplicate detection
@@ -162,45 +194,28 @@ export function generateImageHash(buffer: Buffer): string {
 // Check if a receipt with the same image hash already exists
 export async function findReceiptByImageHash(imageHash: string): Promise<StoredReceipt | null> {
   const client = getChromaClient();
-  
+
   try {
     const collection = await getReceiptsCollection(client);
-    
+
     // Get all receipts and filter by imageHash
     const results = await collection.get({});
-    
+
     if (!results.ids || results.ids.length === 0) {
       return null;
     }
-    
+
     // Find receipt with matching hash
     const index = results.metadatas?.findIndex(
       (metadata) => (metadata as Record<string, string>)?.imageHash === imageHash
     );
-    
+
     if (index === -1 || index === undefined) {
       return null;
     }
-    
+
     const metadata = results.metadatas?.[index] as Record<string, string>;
-    const items = JSON.parse(metadata?.itemsJson || '[]');
-    
-    return {
-      id: results.ids[index],
-      merchantName: metadata?.merchantName || '',
-      merchantAddress: metadata?.merchantAddress || '',
-      date: metadata?.date || '',
-      time: metadata?.time || '',
-      items,
-      subtotal: metadata?.subtotal ? parseFloat(metadata.subtotal) : 0,
-      tax: metadata?.tax ? parseFloat(metadata.tax) : 0,
-      total: parseFloat(metadata?.total || '0'),
-      paymentMethod: (metadata?.paymentMethod as 'cash' | 'credit' | 'debit' | 'mobile' | 'other') || 'other',
-      currency: metadata?.currency || 'USD',
-      imageUrl: metadata?.imageUrl || undefined,
-      imageHash: metadata?.imageHash || undefined,
-      createdAt: new Date(metadata?.createdAt || Date.now()),
-    };
+    return metadataToReceipt(results.ids[index], metadata);
   } catch (error) {
     console.error('Error finding receipt by hash:', error);
     return null;
@@ -208,49 +223,31 @@ export async function findReceiptByImageHash(imageHash: string): Promise<StoredR
 }
 
 // Get all receipts from ChromaDB
-export async function getReceipts(limit = 50): Promise<StoredReceipt[]> {
+export async function getReceipts(limit = 50, offset = 0): Promise<StoredReceipt[]> {
   const client = getChromaClient();
-  
-  // Get or create collection - we provide embeddings manually
+
   const collection = await getReceiptsCollection(client);
 
   const results = await collection.get({
-    limit,
+    limit: limit + offset,
   });
-  
+
   if (!results.ids || results.ids.length === 0) {
     return [];
   }
-  
-  return results.ids.map((id, index) => {
-    const metadata = results.metadatas?.[index] as Record<string, string> | undefined;
-    const items = JSON.parse(metadata?.itemsJson || '[]');
-    
-    return {
-      id,
-      merchantName: metadata?.merchantName || '',
-      merchantAddress: metadata?.merchantAddress || '',
-      date: metadata?.date || '',
-      time: metadata?.time || '',
-      items,
-      subtotal: metadata?.subtotal ? parseFloat(metadata.subtotal) : 0,
-      tax: metadata?.tax ? parseFloat(metadata.tax) : 0,
-      total: parseFloat(metadata?.total || '0'),
-      paymentMethod: (metadata?.paymentMethod as 'cash' | 'credit' | 'debit' | 'mobile' | 'other') || 'other',
-      currency: metadata?.currency || 'USD',
-      imageUrl: metadata?.imageUrl || undefined,
-      imageHash: metadata?.imageHash || undefined,
-      createdAt: new Date(metadata?.createdAt || Date.now()),
-    };
-  }).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+  return results.ids
+    .map((id, index) =>
+      metadataToReceipt(id, results.metadatas?.[index] as Record<string, string>)
+    )
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .slice(offset, offset + limit);
 }
 
 // Get spending summary by category
 export async function getSpendingSummary() {
-  const receipts = await getReceipts(1000); // Get more receipts for analysis
-  
+  const receipts = await getReceipts(1000);
   const categoryMap = new Map<string, { totalSpent: number; count: number }>();
-  
   receipts.forEach(receipt => {
     receipt.items.forEach(item => {
       const existing = categoryMap.get(item.category) || { totalSpent: 0, count: 0 };
@@ -260,34 +257,22 @@ export async function getSpendingSummary() {
       });
     });
   });
-  
   return Array.from(categoryMap.entries())
-    .map(([category, data]) => ({
-      category,
-      totalSpent: data.totalSpent,
-      count: data.count,
-    }))
+    .map(([category, data]) => ({ category, totalSpent: data.totalSpent, count: data.count }))
     .sort((a, b) => b.totalSpent - a.totalSpent);
 }
 
-// Get spending over time (last 30 days)
-export async function getSpendingOverTime() {
+// Get spending over time
+export async function getSpendingOverTime(days = 30) {
   const receipts = await getReceipts(1000);
-  
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
   const dateMap = new Map<string, number>();
-  
   receipts.forEach(receipt => {
-    const receiptDate = new Date(receipt.date);
-    if (receiptDate >= thirtyDaysAgo) {
-      const dateStr = receipt.date;
-      const existing = dateMap.get(dateStr) || 0;
-      dateMap.set(dateStr, existing + receipt.total);
+    if (new Date(receipt.date) >= cutoff) {
+      dateMap.set(receipt.date, (dateMap.get(receipt.date) || 0) + receipt.total);
     }
   });
-  
   return Array.from(dateMap.entries())
     .map(([date, total]) => ({ date, total }))
     .sort((a, b) => a.date.localeCompare(b.date));
@@ -296,54 +281,37 @@ export async function getSpendingOverTime() {
 // Semantic search for receipts
 export async function searchReceipts(query: string, limit = 10): Promise<StoredReceipt[]> {
   const client = getChromaClient();
-  
+
   // Get or create collection - we provide embeddings manually
   const collection = await getReceiptsCollection(client);
-  
+
   const queryEmbedding = await generateEmbedding(query);
   const results = await collection.query({
     queryEmbeddings: [queryEmbedding],
     nResults: limit,
   });
-  
+
   if (!results.ids || results.ids[0].length === 0) {
     return [];
   }
-  
+
   return results.ids[0].map((id, index) => {
     const metadata = results.metadatas?.[0][index] as Record<string, string>;
-    const items = JSON.parse(metadata?.itemsJson || '[]');
-    
-    return {
-      id,
-      merchantName: metadata?.merchantName || '',
-      merchantAddress: metadata?.merchantAddress || '',
-      date: metadata?.date || '',
-      time: metadata?.time || '',
-      items,
-      subtotal: metadata?.subtotal ? parseFloat(metadata.subtotal) : 0,
-      tax: metadata?.tax ? parseFloat(metadata.tax) : 0,
-      total: parseFloat(metadata?.total || '0'),
-      paymentMethod: (metadata?.paymentMethod as 'cash' | 'credit' | 'debit' | 'mobile' | 'other') || 'other',
-      currency: metadata?.currency || 'USD',
-      imageUrl: metadata?.imageUrl || undefined,
-      imageHash: metadata?.imageHash || undefined,
-      createdAt: new Date(metadata?.createdAt || Date.now()),
-    };
+    return metadataToReceipt(id, metadata);
   });
 }
 
 // Delete a receipt by ID
 export async function deleteReceipt(id: string): Promise<boolean> {
   const client = getChromaClient();
-  
+
   try {
     const collection = await getReceiptsCollection(client);
-    
+
     await collection.delete({
       ids: [id],
     });
-    
+
     return true;
   } catch (error) {
     console.error('Error deleting receipt:', error);
@@ -353,77 +321,71 @@ export async function deleteReceipt(id: string): Promise<boolean> {
 
 // ============= BANK TRANSACTIONS =============
 
-// Save multiple bank transactions
+// Save multiple bank transactions using a single batch embedding call
 export async function saveTransactions(
   transactions: BankTransaction[],
   statementId?: string
 ): Promise<string[]> {
+  if (transactions.length === 0) return [];
+
   const client = getChromaClient();
-  
   const collection = await getTransactionsCollection(client);
 
-  const ids: string[] = [];
-  const embeddings: number[][] = [];
-  const metadatas: Record<string, string>[] = [];
-  const documents: string[] = [];
-  
-  for (const transaction of transactions) {
-    const id = `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    ids.push(id);
-    
-    // Create transaction text for embedding
-    const transactionText = `${transaction.description} on ${transaction.date}. Category: ${transaction.category}. Amount: ${transaction.amount} ${transaction.currency}`;
-    const embedding = await generateEmbedding(transactionText);
-    embeddings.push(embedding);
-    documents.push(transactionText);
-    
-    metadatas.push({
-      date: transaction.date,
-      description: transaction.description,
-      amount: transaction.amount.toString(),
-      category: transaction.category,
-      currency: transaction.currency,
-      statementId: statementId || '',
-      createdAt: new Date().toISOString(),
-    } as Record<string, string>);
-  }
-  
-  await collection.add({
-    ids,
-    embeddings,
-    documents,
-    metadatas,
-  });
-  
+  const texts = transactions.map(
+    t => `${t.description} on ${t.date}. Category: ${t.category}. Amount: ${t.amount} ${t.currency}`
+  );
+
+  // Single batch API call — replaces N sequential calls
+  const embeddings = await generateEmbeddings(texts);
+
+  const now = new Date().toISOString();
+  const ids = transactions.map(
+    () => `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  );
+
+  const metadatas: Record<string, string>[] = transactions.map(t => ({
+    date: t.date,
+    description: t.description,
+    amount: t.amount.toString(),
+    category: t.category,
+    currency: t.currency,
+    statementId: statementId || '',
+    createdAt: now,
+  }));
+
+  await collection.add({ ids, embeddings, documents: texts, metadatas });
+
   return ids;
 }
 
 // Get all bank transactions
-export async function getTransactions(limit = 500): Promise<StoredTransaction[]> {
+export async function getTransactions(limit = 100, offset = 0): Promise<StoredTransaction[]> {
   const client = getChromaClient();
 
   try {
     const collection = await getTransactionsCollection(client);
-    const results = await collection.get({ limit });
-    
+    const results = await collection.get({ limit: limit + offset });
+
     if (!results.ids || results.ids.length === 0) {
       return [];
     }
-    
-    return results.ids.map((id, index) => {
-      const metadata = results.metadatas?.[index] as Record<string, string> | undefined;
-      
-      return {
-        id,
-        date: metadata?.date || '',
-        description: metadata?.description || '',
-        amount: parseFloat(metadata?.amount || '0'),
-        category: (metadata?.category || 'other') as BankTransaction['category'],
-        currency: metadata?.currency || 'GBP',
-        statementId: metadata?.statementId || undefined,
-        createdAt: new Date(metadata?.createdAt || Date.now()),
-      };
-    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    return results.ids
+      .map((id, index) => {
+        const metadata = results.metadatas?.[index] as Record<string, string> | undefined;
+        return {
+          id,
+          date: metadata?.date || '',
+          description: metadata?.description || '',
+          amount: parseFloat(metadata?.amount || '0'),
+          category: (metadata?.category || 'other') as BankTransaction['category'],
+          currency: metadata?.currency || 'GBP',
+          statementId: metadata?.statementId || undefined,
+          createdAt: new Date(metadata?.createdAt || Date.now()),
+        };
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(offset, offset + limit);
   } catch (error) {
     console.error('Error getting transactions:', error);
     return [];
@@ -433,11 +395,8 @@ export async function getTransactions(limit = 500): Promise<StoredTransaction[]>
 // Get transaction spending summary by category
 export async function getTransactionSummary() {
   const transactions = await getTransactions(1000);
-  
   const categoryMap = new Map<string, { totalSpent: number; count: number }>();
-  
   transactions.forEach(transaction => {
-    // Only count spending (positive amounts), skip income/transfers
     if (transaction.amount > 0 && transaction.category !== 'income' && transaction.category !== 'transfer') {
       const existing = categoryMap.get(transaction.category) || { totalSpent: 0, count: 0 };
       categoryMap.set(transaction.category, {
@@ -446,30 +405,95 @@ export async function getTransactionSummary() {
       });
     }
   });
-  
   return Array.from(categoryMap.entries())
-    .map(([category, data]) => ({
-      category,
-      totalSpent: data.totalSpent,
-      count: data.count,
-    }))
+    .map(([category, data]) => ({ category, totalSpent: data.totalSpent, count: data.count }))
     .sort((a, b) => b.totalSpent - a.totalSpent);
 }
 
 // Delete a transaction
 export async function deleteTransaction(id: string): Promise<boolean> {
   const client = getChromaClient();
-  
+
   try {
     const collection = await getTransactionsCollection(client);
-    
+
     await collection.delete({
       ids: [id],
     });
-    
+
     return true;
   } catch (error) {
     console.error('Error deleting transaction:', error);
+    return false;
+  }
+}
+
+// ============= BUDGETS =============
+
+export async function saveBudget(category: string, limitAmount: number): Promise<Budget> {
+  const client = getChromaClient();
+  const collection = await getBudgetsCollection(client);
+
+  // Replace existing budget for this category
+  const existing = await collection.get({});
+  if (existing.ids?.length) {
+    const idx = existing.metadatas?.findIndex(
+      m => (m as Record<string, string>)?.category === category
+    );
+    if (idx !== undefined && idx !== -1) {
+      await collection.delete({ ids: [existing.ids[idx]] });
+    }
+  }
+
+  const id = `budget_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const createdAt = new Date();
+  // Budgets don't need semantic search — use a zero embedding
+  const zeroEmbedding = new Array(1536).fill(0);
+
+  await collection.add({
+    ids: [id],
+    embeddings: [zeroEmbedding],
+    metadatas: [{
+      category,
+      limitAmount: limitAmount.toString(),
+      period: 'monthly',
+      createdAt: createdAt.toISOString(),
+    }],
+    documents: [`Budget for ${category}: ${limitAmount}`],
+  });
+
+  return { id, category, limitAmount, period: 'monthly', createdAt };
+}
+
+export async function getBudgets(): Promise<Budget[]> {
+  const client = getChromaClient();
+  try {
+    const collection = await getBudgetsCollection(client);
+    const results = await collection.get({});
+    if (!results.ids || results.ids.length === 0) return [];
+
+    return results.ids.map((id, index) => {
+      const m = results.metadatas?.[index] as Record<string, string>;
+      return {
+        id,
+        category: m?.category || '',
+        limitAmount: parseFloat(m?.limitAmount || '0'),
+        period: 'monthly' as const,
+        createdAt: new Date(m?.createdAt || Date.now()),
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+export async function deleteBudget(id: string): Promise<boolean> {
+  const client = getChromaClient();
+  try {
+    const collection = await getBudgetsCollection(client);
+    await collection.delete({ ids: [id] });
+    return true;
+  } catch {
     return false;
   }
 }
