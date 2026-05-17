@@ -1,13 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { experimental_useObject as useObject } from "@ai-sdk/react";
 import { Receipt } from "@/lib/schemas";
 import { receiptSchema } from "@/lib/schemas";
-import { Upload, Loader2, AlertCircle } from "lucide-react";
+import { Upload, Loader2, AlertCircle, X, CheckCircle2 } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface ReceiptUploaderProps {
   onReceiptExtracted: (receipt: Receipt) => void;
+}
+
+interface QueueItem {
+  id: string;
+  file: File;
+  preview: string;
+  status: "pending" | "processing" | "done" | "error";
 }
 
 async function sha256Hex(buffer: ArrayBuffer): Promise<string> {
@@ -33,6 +50,8 @@ export function ReceiptUploader({ onReceiptExtracted }: ReceiptUploaderProps) {
     imageHash: string;
   } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [queue, setQueue] = useState<QueueItem[]>([]);
+  const processingRef = useRef(false);
 
   const {
     object: partialReceipt,
@@ -45,7 +64,10 @@ export function ReceiptUploader({ onReceiptExtracted }: ReceiptUploaderProps) {
       if (object) onReceiptExtracted(object as Receipt);
       setPendingPayload(null);
     },
-    onError: () => setError("Failed to extract receipt. Please try again."),
+    onError: () => {
+      setError("Failed to extract receipt. Please try again.");
+      toast.error("Failed to extract receipt. Please try again.");
+    },
   });
 
   const processFile = async (file: File) => {
@@ -91,9 +113,49 @@ export function ReceiptUploader({ onReceiptExtracted }: ReceiptUploaderProps) {
     });
   };
 
+  const addToQueue = (files: File[]) => {
+    const newItems: QueueItem[] = files
+      .filter((f) => f.type.startsWith("image/"))
+      .map((f) => ({
+        id: Math.random().toString(36).slice(2),
+        file: f,
+        preview: URL.createObjectURL(f),
+        status: "pending" as const,
+      }));
+    setQueue((prev) => [...prev, ...newItems]);
+    // process first pending
+    if (!processingRef.current && newItems.length > 0) {
+      processQueueItem(newItems[0].id, newItems[0].file);
+    }
+  };
+
+  const processQueueItem = async (id: string, file: File) => {
+    processingRef.current = true;
+    setQueue((q) =>
+      q.map((x) => (x.id === id ? { ...x, status: "processing" } : x)),
+    );
+    try {
+      await processFile(file);
+      setQueue((q) =>
+        q.map((x) => (x.id === id ? { ...x, status: "done" } : x)),
+      );
+    } catch {
+      setQueue((q) =>
+        q.map((x) => (x.id === id ? { ...x, status: "error" } : x)),
+      );
+    } finally {
+      processingRef.current = false;
+    }
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) await processFile(file);
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+    if (files.length === 1) {
+      await processFile(files[0]);
+    } else {
+      addToQueue(files);
+    }
   };
 
   const handleDragEnter = (e: React.DragEvent) => {
@@ -115,13 +177,18 @@ export function ReceiptUploader({ onReceiptExtracted }: ReceiptUploaderProps) {
     e.stopPropagation();
     setIsDragging(false);
     if (isLoading) return;
-    const file = e.dataTransfer.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      setError("Please upload an image file");
+    const files = Array.from(e.dataTransfer.files).filter((f) =>
+      f.type.startsWith("image/"),
+    );
+    if (files.length === 0) {
+      toast.error("Please upload an image file");
       return;
     }
-    await processFile(file);
+    if (files.length === 1) {
+      await processFile(files[0]);
+    } else {
+      addToQueue(files);
+    }
   };
 
   const handleUseExisting = () => {
@@ -140,46 +207,108 @@ export function ReceiptUploader({ onReceiptExtracted }: ReceiptUploaderProps) {
   };
 
   return (
-    <div className="w-full">
-      <div className="mb-4 flex items-center gap-4">
-        <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-          AI Model:
-        </label>
-        <select
+    <div className="w-full space-y-4">
+      {/* Model selector */}
+      <div className="flex items-center gap-3">
+        <span className="text-sm font-medium text-zinc-300">AI Model:</span>
+        <Select
           value={selectedModel}
-          onChange={(e) =>
-            setSelectedModel(e.target.value as "openai" | "anthropic")
-          }
-          className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          onValueChange={(v) => setSelectedModel(v as "openai" | "anthropic")}
           disabled={isLoading}
         >
-          <option value="openai">GPT-4o (OpenAI)</option>
-          <option value="anthropic">Claude 3.5 Sonnet</option>
-        </select>
+          <SelectTrigger className="w-52 glass border-white/20 text-zinc-200 bg-transparent">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="bg-zinc-900 border-white/20 text-zinc-200">
+            <SelectItem value="openai">GPT-4o (OpenAI)</SelectItem>
+            <SelectItem value="anthropic">Claude 3.5 Sonnet</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
+
+      {/* Batch queue */}
+      {queue.length > 0 && (
+        <div className="rounded-xl glass border border-white/10 p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-zinc-400">
+              Batch queue ({queue.length})
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 text-xs text-zinc-500 hover:text-zinc-300"
+              onClick={() => setQueue([])}
+              disabled={isLoading}
+            >
+              Clear
+            </Button>
+          </div>
+          {queue.map((item) => (
+            <div key={item.id} className="flex items-center gap-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={item.preview}
+                alt=""
+                className="w-8 h-8 rounded object-cover"
+              />
+              <span className="text-xs text-zinc-300 flex-1 truncate">
+                {item.file.name}
+              </span>
+              <Badge
+                variant="outline"
+                className={`text-[10px] border-0 ${
+                  item.status === "done"
+                    ? "bg-emerald-500/20 text-emerald-300"
+                    : item.status === "error"
+                      ? "bg-red-500/20 text-red-300"
+                      : item.status === "processing"
+                        ? "bg-violet-500/20 text-violet-300"
+                        : "bg-zinc-500/20 text-zinc-400"
+                }`}
+              >
+                {item.status === "processing" ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  item.status
+                )}
+              </Badge>
+              {item.status !== "processing" && (
+                <button
+                  onClick={() =>
+                    setQueue((q) => q.filter((x) => x.id !== item.id))
+                  }
+                  className="text-zinc-600 hover:text-zinc-400"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       <label
         onDragEnter={handleDragEnter}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className={`flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+        className={`flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${
           isLoading
-            ? "border-zinc-400 bg-zinc-50 dark:bg-zinc-900 cursor-not-allowed"
+            ? "border-zinc-600 bg-zinc-800/30 cursor-not-allowed"
             : isDragging
-              ? "border-blue-500 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-500"
-              : "border-zinc-300 bg-zinc-50 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800"
+              ? "border-violet-500 bg-violet-950/20"
+              : "border-white/20 bg-white/5 hover:bg-white/10"
         }`}
       >
         <div className="flex flex-col items-center justify-center pt-5 pb-6 w-full px-4">
           {isLoading ? (
             <>
-              <Loader2 className="w-10 h-10 mb-3 text-blue-500 animate-spin" />
-              <p className="mb-1 text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+              <Loader2 className="w-10 h-10 mb-3 text-violet-400 animate-spin" />
+              <p className="mb-1 text-sm font-semibold text-zinc-300">
                 Extracting receipt data…
               </p>
               {partialReceipt?.merchantName && (
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                <p className="text-xs text-zinc-500">
                   {partialReceipt.merchantName}
                   {partialReceipt.total
                     ? ` · ${partialReceipt.currency ?? ""} ${partialReceipt.total}`
@@ -187,7 +316,7 @@ export function ReceiptUploader({ onReceiptExtracted }: ReceiptUploaderProps) {
                 </p>
               )}
               {partialReceipt?.items && partialReceipt.items.length > 0 && (
-                <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">
+                <p className="text-xs text-zinc-600 mt-1">
                   {partialReceipt.items.length} item
                   {partialReceipt.items.length !== 1 ? "s" : ""} found so far…
                 </p>
@@ -198,17 +327,17 @@ export function ReceiptUploader({ onReceiptExtracted }: ReceiptUploaderProps) {
             <img
               src={preview}
               alt="Receipt preview"
-              className="max-h-52 mx-auto object-contain"
+              className="max-h-52 mx-auto object-contain rounded-lg"
             />
           ) : (
             <>
               <Upload className="w-12 h-12 mb-4 text-zinc-500" />
-              <p className="mb-2 text-sm text-zinc-700 dark:text-zinc-300">
-                <span className="font-semibold">Click to upload receipt</span>{" "}
-                or drag and drop
+              <p className="mb-2 text-sm text-zinc-300">
+                <span className="font-semibold">Click to upload</span> or drag
+                and drop
               </p>
-              <p className="text-xs text-zinc-500 dark:text-zinc-500">
-                PNG, JPG, HEIC up to 10 MB
+              <p className="text-xs text-zinc-500">
+                PNG, JPG, HEIC up to 10 MB · drop multiple for batch
               </p>
             </>
           )}
@@ -217,6 +346,7 @@ export function ReceiptUploader({ onReceiptExtracted }: ReceiptUploaderProps) {
           type="file"
           className="hidden"
           accept="image/*"
+          multiple
           onChange={handleFileChange}
           disabled={isLoading}
         />
@@ -224,32 +354,35 @@ export function ReceiptUploader({ onReceiptExtracted }: ReceiptUploaderProps) {
 
       {/* Duplicate Receipt Dialog */}
       {duplicateReceipt && (
-        <div className="mt-4 p-4 border border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-700 rounded-lg">
+        <div className="p-4 border border-amber-500/30 bg-amber-950/20 rounded-xl">
           <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-500 flex-shrink-0 mt-0.5" />
+            <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <h3 className="font-semibold text-amber-900 dark:text-amber-200 mb-1">
+              <h3 className="font-semibold text-amber-200 mb-1">
                 Duplicate Receipt Detected
               </h3>
-              <p className="text-sm text-amber-800 dark:text-amber-300 mb-3">
+              <p className="text-sm text-amber-300/80 mb-3">
                 This receipt was already uploaded. Use existing data or
                 reprocess with AI.
               </p>
               <div className="flex gap-2">
-                <button
+                <Button
+                  size="sm"
                   onClick={handleUseExisting}
                   disabled={isLoading}
-                  className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-lg transition-colors"
+                  className="bg-amber-600 hover:bg-amber-700 text-white"
                 >
                   Use Existing
-                </button>
-                <button
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
                   onClick={handleReprocess}
                   disabled={isLoading}
-                  className="px-4 py-2 bg-zinc-600 hover:bg-zinc-700 text-white text-sm font-medium rounded-lg transition-colors"
+                  className="border-white/20 text-zinc-300 hover:text-white glass"
                 >
                   {isLoading ? "Processing…" : "Reprocess with AI"}
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -257,14 +390,9 @@ export function ReceiptUploader({ onReceiptExtracted }: ReceiptUploaderProps) {
       )}
 
       {error && (
-        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2 dark:bg-red-900/20 dark:border-red-800">
-          <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-medium text-red-800 dark:text-red-300">
-              Error
-            </p>
-            <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
-          </div>
+        <div className="p-3 border border-red-500/30 bg-red-950/20 rounded-xl flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+          <p className="text-sm text-red-300">{error}</p>
         </div>
       )}
     </div>

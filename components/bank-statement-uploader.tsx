@@ -4,6 +4,15 @@ import { useState } from "react";
 import { experimental_useObject as useObject } from "@ai-sdk/react";
 import { bankStatementSchema } from "@/lib/transaction-schemas";
 import { Loader2, AlertCircle, FileText, CheckCircle, X } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface BankStatementUploaderProps {
   onStatementProcessed: () => void;
@@ -33,7 +42,10 @@ export function BankStatementUploader({
       setSuccess(true);
       onStatementProcessed();
     },
-    onError: () => setError("Failed to process statement. Please try again."),
+    onError: () => {
+      setError("Failed to process statement. Please try again.");
+      toast.error("Failed to process statement. Please try again.");
+    },
   });
 
   const liveCount = partialStatement?.transactions?.length ?? 0;
@@ -78,6 +90,7 @@ export function BankStatementUploader({
     const file = e.dataTransfer.files?.[0];
     if (!file) return;
     if (!file.type.includes("pdf")) {
+      toast.error("Please upload a PDF file");
       setError("Please upload a PDF file");
       return;
     }
@@ -85,31 +98,30 @@ export function BankStatementUploader({
   };
 
   return (
-    <div className="w-full">
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-2">
+    <div className="w-full space-y-4">
+      <div>
+        <h3 className="text-lg font-semibold text-white mb-1">
           Upload Bank Statement
         </h3>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
+        <p className="text-sm text-zinc-500 mb-3">
           Upload your PDF statement to automatically track and categorize all
           transactions.
         </p>
-
-        <div className="flex items-center gap-4">
-          <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            AI Model:
-          </label>
-          <select
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-medium text-zinc-300">AI Model:</span>
+          <Select
             value={selectedModel}
-            onChange={(e) =>
-              setSelectedModel(e.target.value as "openai" | "anthropic")
-            }
-            className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            onValueChange={(v) => setSelectedModel(v as "openai" | "anthropic")}
             disabled={isLoading}
           >
-            <option value="openai">GPT-4o (OpenAI)</option>
-            <option value="anthropic">Claude 3.5 Sonnet</option>
-          </select>
+            <SelectTrigger className="w-52 glass border-white/20 text-zinc-200 bg-transparent">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-zinc-900 border-white/20 text-zinc-200">
+              <SelectItem value="openai">GPT-4o (OpenAI)</SelectItem>
+              <SelectItem value="anthropic">Claude 3.5 Sonnet</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -118,22 +130,22 @@ export function BankStatementUploader({
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+        className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${
           isLoading
-            ? "border-zinc-400 bg-zinc-50 dark:bg-zinc-900 cursor-not-allowed"
+            ? "border-zinc-600 bg-zinc-800/30 cursor-not-allowed"
             : isDragging
-              ? "border-blue-500 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-500"
-              : "border-zinc-300 bg-zinc-50 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800"
+              ? "border-violet-500 bg-violet-950/20"
+              : "border-white/20 bg-white/5 hover:bg-white/10"
         }`}
       >
         <div className="flex flex-col items-center justify-center pt-5 pb-6">
           {isLoading ? (
             <>
-              <Loader2 className="w-12 h-12 mb-4 text-blue-500 animate-spin" />
-              <p className="mb-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+              <Loader2 className="w-10 h-10 mb-3 text-violet-400 animate-spin" />
+              <p className="mb-1 text-sm font-semibold text-zinc-300">
                 Processing statement…
               </p>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              <p className="text-xs text-zinc-500">
                 {liveCount > 0
                   ? `${liveCount} transaction${liveCount !== 1 ? "s" : ""} found so far…`
                   : "Extracting and categorising transactions with AI"}
@@ -142,13 +154,11 @@ export function BankStatementUploader({
           ) : (
             <>
               <FileText className="w-12 h-12 mb-4 text-zinc-500" />
-              <p className="mb-2 text-sm text-zinc-700 dark:text-zinc-300">
+              <p className="mb-2 text-sm text-zinc-300">
                 <span className="font-semibold">Click to upload statement</span>{" "}
                 or drag and drop
               </p>
-              <p className="text-xs text-zinc-500 dark:text-zinc-500">
-                PDF bank statements only
-              </p>
+              <p className="text-xs text-zinc-600">PDF bank statements only</p>
             </>
           )}
         </div>
@@ -162,20 +172,15 @@ export function BankStatementUploader({
       </label>
 
       {success && (
-        <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-start gap-2 dark:bg-green-900/20 dark:border-green-800">
-          <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <p className="text-sm font-medium text-green-800 dark:text-green-300">
-              Success!
-            </p>
-            <p className="text-sm text-green-700 dark:text-green-400">
-              Extracted and saved {finalCount} transaction
-              {finalCount !== 1 ? "s" : ""}. Check the Transactions tab.
-            </p>
-          </div>
+        <div className="p-3 border border-emerald-500/30 bg-emerald-950/20 rounded-xl flex items-center gap-2">
+          <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+          <p className="text-sm text-emerald-300 flex-1">
+            Extracted and saved {finalCount} transaction
+            {finalCount !== 1 ? "s" : ""}. Check the Transactions tab.
+          </p>
           <button
             onClick={() => setSuccess(false)}
-            className="text-green-600 hover:text-green-800 dark:text-green-400"
+            className="text-emerald-600 hover:text-emerald-400"
           >
             <X className="w-4 h-4" />
           </button>
@@ -183,14 +188,9 @@ export function BankStatementUploader({
       )}
 
       {error && (
-        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2 dark:bg-red-900/20 dark:border-red-800">
-          <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-medium text-red-800 dark:text-red-300">
-              Error
-            </p>
-            <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
-          </div>
+        <div className="p-3 border border-red-500/30 bg-red-950/20 rounded-xl flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+          <p className="text-sm text-red-300">{error}</p>
         </div>
       )}
     </div>

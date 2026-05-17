@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AlertCircle, Loader2, PlusCircle, Trash2 } from "lucide-react";
+import { useCurrency } from "@/lib/currency-context";
 
 interface Budget {
   id: string;
@@ -113,33 +114,34 @@ export function BudgetManager() {
     }
   };
 
+  const { symbol } = useCurrency();
+
   const getSpent = (cat: string) =>
     spending.find((s) => s.category === cat)?.totalSpent ?? 0;
 
   if (loading) {
     return (
       <div className="flex items-center justify-center p-12">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-violet-500" />
       </div>
     );
   }
 
   return (
     <div className="space-y-8">
-      {/* Add / update budget form */}
-      <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm">
-        <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
+      <div className="glass border border-white/10 rounded-xl p-6">
+        <h3 className="text-lg font-semibold text-zinc-100 mb-4">
           Set Monthly Budget
         </h3>
         <form onSubmit={handleSave} className="flex flex-wrap gap-3 items-end">
           <div className="flex-1 min-w-[160px]">
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+            <label className="block text-sm font-medium text-zinc-400 mb-1">
               Category
             </label>
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-zinc-200"
             >
               {SPENDING_CATEGORIES.map((c) => (
                 <option key={c} value={c}>
@@ -149,7 +151,7 @@ export function BudgetManager() {
             </select>
           </div>
           <div className="flex-1 min-w-[140px]">
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+            <label className="block text-sm font-medium text-zinc-400 mb-1">
               Limit (monthly)
             </label>
             <input
@@ -159,30 +161,31 @@ export function BudgetManager() {
               value={limitAmount}
               onChange={(e) => setLimitAmount(e.target.value)}
               placeholder="e.g. 200"
-              className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600"
             />
           </div>
           <button
             type="submit"
             disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
           >
             <PlusCircle className="w-4 h-4" />
             {saving ? "Saving…" : "Save Budget"}
           </button>
         </form>
         {error && (
-          <div className="mt-3 flex items-center gap-2 text-red-600 dark:text-red-400 text-sm">
+          <div className="mt-3 flex items-center gap-2 text-red-400 text-sm">
             <AlertCircle className="w-4 h-4" /> {error}
           </div>
         )}
       </div>
 
-      {/* Budget progress cards */}
       {budgets.length === 0 ? (
-        <p className="text-center text-zinc-500 dark:text-zinc-400 py-8">
-          No budgets set yet. Add one above to track your spending limits.
-        </p>
+        <div className="text-center glass border border-white/10 rounded-xl py-12">
+          <p className="text-zinc-500">
+            No budgets set yet. Add one above to track your spending limits.
+          </p>
+        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {budgets.map((budget) => {
@@ -199,55 +202,61 @@ export function BudgetManager() {
             return (
               <div
                 key={budget.id}
-                className={`bg-white dark:bg-zinc-900 rounded-xl border p-5 shadow-sm ${
+                className={`glass rounded-xl border p-5 ${
                   over
-                    ? "border-red-300 dark:border-red-700"
+                    ? "border-red-500/40"
                     : warning
-                      ? "border-amber-300 dark:border-amber-700"
-                      : "border-zinc-200 dark:border-zinc-800"
+                      ? "border-amber-500/40"
+                      : "border-white/10"
                 }`}
               >
                 <div className="flex items-center justify-between mb-3">
-                  <span className="font-semibold text-zinc-900 dark:text-zinc-100 capitalize">
+                  <span className="font-semibold text-zinc-100 capitalize">
                     {budget.category}
                   </span>
                   <button
                     onClick={() => handleDelete(budget.id)}
-                    className="text-zinc-400 hover:text-red-500 transition-colors"
+                    className="text-zinc-500 hover:text-red-400 transition-colors"
                     title="Delete budget"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
-
                 <div className="mb-2">
-                  <div className="flex justify-between text-xs text-zinc-500 dark:text-zinc-400 mb-1">
-                    <span>£{spent.toFixed(2)} spent</span>
-                    <span>£{budget.limitAmount.toFixed(2)} limit</span>
+                  <div className="flex justify-between text-xs text-zinc-500 mb-1">
+                    <span>
+                      {symbol}
+                      {spent.toFixed(2)} spent
+                    </span>
+                    <span>
+                      {symbol}
+                      {budget.limitAmount.toFixed(2)} limit
+                    </span>
                   </div>
-                  <div className="w-full h-2.5 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
+                  <div className="w-full h-2.5 rounded-full bg-white/10 overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all ${barColor}`}
                       style={{ width: `${pct}%` }}
                     />
                   </div>
                 </div>
-
                 {over && (
-                  <p className="text-xs text-red-600 dark:text-red-400 font-medium flex items-center gap-1">
+                  <p className="text-xs text-red-400 font-medium flex items-center gap-1">
                     <AlertCircle className="w-3 h-3" />
-                    Over budget by £{(spent - budget.limitAmount).toFixed(2)}
+                    Over budget by {symbol}
+                    {(spent - budget.limitAmount).toFixed(2)}
                   </p>
                 )}
                 {warning && !over && (
-                  <p className="text-xs text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1">
+                  <p className="text-xs text-amber-400 font-medium flex items-center gap-1">
                     <AlertCircle className="w-3 h-3" />
                     {Math.round(pct)}% of budget used
                   </p>
                 )}
                 {!over && !warning && (
-                  <p className="text-xs text-zinc-400 dark:text-zinc-500">
-                    £{(budget.limitAmount - spent).toFixed(2)} remaining
+                  <p className="text-xs text-zinc-500">
+                    {symbol}
+                    {(budget.limitAmount - spent).toFixed(2)} remaining
                   </p>
                 )}
               </div>

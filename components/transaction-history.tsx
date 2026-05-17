@@ -3,46 +3,41 @@
 import { useEffect, useState } from "react";
 import { StoredTransaction } from "@/lib/db";
 import { format } from "date-fns";
-import { Loader2, FileText, TrendingUp, DollarSign, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
+import {
+  Loader2,
+  FileText,
+  TrendingUp,
+  DollarSign,
+  ChevronUp,
+  ChevronDown,
+  ChevronsUpDown,
+  Download,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useCurrency } from "@/lib/currency-context";
 
 type SortField = "date" | "description" | "category" | "amount";
 type SortDir = "asc" | "desc";
 
-// Get currency symbol from currency code
-function getCurrencySymbol(currencyCode: string): string {
-  const symbols: Record<string, string> = {
-    USD: "$",
-    GBP: "£",
-    EUR: "€",
-    JPY: "¥",
-    CNY: "¥",
-    INR: "₹",
-    AUD: "A$",
-    CAD: "C$",
-  };
-  return symbols[currencyCode?.toUpperCase()] || currencyCode || "£";
-}
-
 const categoryColors: Record<string, string> = {
-  groceries:
-    "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
-  dining:
-    "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300",
-  transportation:
-    "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
-  entertainment:
-    "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
-  utilities:
-    "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
-  healthcare: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
-  shopping: "bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300",
-  travel:
-    "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300",
-  bills: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
-  transfer: "bg-zinc-100 text-zinc-800 dark:bg-zinc-900/30 dark:text-zinc-300",
-  income:
-    "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
-  other: "bg-zinc-100 text-zinc-800 dark:bg-zinc-900/30 dark:text-zinc-300",
+  groceries: "bg-green-500/20 text-green-300",
+  dining: "bg-orange-500/20 text-orange-300",
+  transportation: "bg-blue-500/20 text-blue-300",
+  entertainment: "bg-purple-500/20 text-purple-300",
+  utilities: "bg-yellow-500/20 text-yellow-300",
+  healthcare: "bg-red-500/20 text-red-300",
+  shopping: "bg-pink-500/20 text-pink-300",
+  travel: "bg-indigo-500/20 text-indigo-300",
+  bills: "bg-amber-500/20 text-amber-300",
+  transfer: "bg-zinc-500/20 text-zinc-400",
+  income: "bg-emerald-500/20 text-emerald-300",
+  other: "bg-zinc-500/20 text-zinc-400",
 };
 
 export function TransactionHistory() {
@@ -78,12 +73,12 @@ export function TransactionHistory() {
 
   if (transactions.length === 0) {
     return (
-      <div className="text-center p-12">
-        <FileText className="w-16 h-16 mx-auto mb-4 text-zinc-400" />
-        <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-2">
+      <div className="text-center p-12 rounded-2xl glass border border-white/10">
+        <FileText className="w-16 h-16 mx-auto mb-4 text-zinc-600" />
+        <h3 className="text-lg font-semibold text-zinc-300 mb-2">
           No transactions yet
         </h3>
-        <p className="text-zinc-600 dark:text-zinc-400">
+        <p className="text-zinc-500">
           Upload your bank statement to see your transactions
         </p>
       </div>
@@ -127,48 +122,57 @@ export function TransactionHistory() {
   };
 
   const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) return <ChevronsUpDown className="w-3 h-3 ml-1 opacity-40" />;
-    return sortDir === "asc"
-      ? <ChevronUp className="w-3 h-3 ml-1" />
-      : <ChevronDown className="w-3 h-3 ml-1" />;
+    if (sortField !== field)
+      return <ChevronsUpDown className="w-3 h-3 ml-1 opacity-40" />;
+    return sortDir === "asc" ? (
+      <ChevronUp className="w-3 h-3 ml-1" />
+    ) : (
+      <ChevronDown className="w-3 h-3 ml-1" />
+    );
   };
 
   const filteredTransactions = (
     selectedCategory === "all"
       ? transactions
       : transactions.filter((t) => t.category === selectedCategory)
-  ).slice().sort((a, b) => {
-    const dir = sortDir === "asc" ? 1 : -1;
-    switch (sortField) {
-      case "date":        return dir * a.date.localeCompare(b.date);
-      case "description": return dir * a.description.localeCompare(b.description);
-      case "category":    return dir * a.category.localeCompare(b.category);
-      case "amount":      return dir * (a.amount - b.amount);
-    }
-  });
+  )
+    .slice()
+    .sort((a, b) => {
+      const dir = sortDir === "asc" ? 1 : -1;
+      switch (sortField) {
+        case "date":
+          return dir * a.date.localeCompare(b.date);
+        case "description":
+          return dir * a.description.localeCompare(b.description);
+        case "category":
+          return dir * a.category.localeCompare(b.category);
+        case "amount":
+          return dir * (a.amount - b.amount);
+      }
+    });
 
-  const currencySymbol = getCurrencySymbol(transactions[0]?.currency || "GBP");
+  const { symbol: currencySymbol } = useCurrency();
 
   return (
     <div className="space-y-6">
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-6 rounded-lg text-white shadow-lg">
+        <div className="bg-gradient-to-br from-blue-600/30 to-blue-700/30 glass border border-white/10 p-5 rounded-2xl text-white">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-blue-100 text-sm font-medium mb-1">
+              <p className="text-zinc-400 text-sm font-medium mb-1">
                 Total Transactions
               </p>
               <p className="text-3xl font-bold">{transactions.length}</p>
             </div>
-            <FileText className="w-10 h-10 text-blue-200" />
+            <FileText className="w-8 h-8 text-blue-400" />
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-6 rounded-lg text-white shadow-lg">
+        <div className="bg-gradient-to-br from-purple-600/30 to-purple-700/30 glass border border-white/10 p-5 rounded-2xl text-white">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-purple-100 text-sm font-medium mb-1">
+              <p className="text-zinc-400 text-sm font-medium mb-1">
                 Total Spending
               </p>
               <p className="text-3xl font-bold">
@@ -176,64 +180,91 @@ export function TransactionHistory() {
                 {totalSpending.toFixed(2)}
               </p>
             </div>
-            <DollarSign className="w-10 h-10 text-purple-200" />
+            <DollarSign className="w-8 h-8 text-purple-400" />
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-green-500 to-green-600 p-6 rounded-lg text-white shadow-lg">
+        <div className="bg-gradient-to-br from-emerald-600/30 to-emerald-700/30 glass border border-white/10 p-5 rounded-2xl text-white">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-green-100 text-sm font-medium mb-1">
+              <p className="text-zinc-400 text-sm font-medium mb-1">
                 Top Category
               </p>
               <p className="text-xl font-bold capitalize">
                 {topCategory?.[0] || "N/A"}
               </p>
               {topCategory && (
-                <p className="text-green-100 text-sm">
+                <p className="text-zinc-400 text-sm">
                   {currencySymbol}
                   {topCategory[1].toFixed(2)}
                 </p>
               )}
             </div>
-            <TrendingUp className="w-10 h-10 text-green-200" />
+            <TrendingUp className="w-8 h-8 text-emerald-400" />
           </div>
         </div>
       </div>
 
-      {/* Category Filter */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-          Filter:
-        </span>
-        {categories.map((category) => (
-          <button
-            key={category}
-            onClick={() => setSelectedCategory(category)}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors capitalize ${
-              selectedCategory === category
-                ? "bg-blue-600 text-white"
-                : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
-            }`}
-          >
-            {category}{" "}
-            {category !== "all" &&
-              `(${transactions.filter((t) => t.category === category).length})`}
-          </button>
-        ))}
+      {/* Category Filter + Export */}
+      <div className="flex items-center gap-2 flex-wrap justify-between">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm font-medium text-zinc-400">Filter:</span>
+          {categories.map((category) => (
+            <button
+              key={category}
+              onClick={() => setSelectedCategory(category)}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors capitalize ${
+                selectedCategory === category
+                  ? "bg-violet-600 text-white"
+                  : "glass border border-white/10 text-zinc-400 hover:text-zinc-200"
+              }`}
+            >
+              {category}{" "}
+              {category !== "all" &&
+                `(${transactions.filter((t) => t.category === category).length})`}
+            </button>
+          ))}
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md glass border border-white/20 text-zinc-300 hover:text-white transition-colors">
+            <Download className="w-3.5 h-3.5" /> Export
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="bg-zinc-900 border-white/20 text-zinc-200">
+            <DropdownMenuItem
+              className="cursor-pointer hover:bg-white/10"
+              onClick={() => {
+                window.location.href =
+                  "/api/export?format=csv&type=transactions";
+              }}
+            >
+              Export CSV
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="cursor-pointer hover:bg-white/10"
+              onClick={() => {
+                window.location.href =
+                  "/api/export?format=json&type=transactions";
+              }}
+            >
+              Export JSON
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Transactions Table */}
-      <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
+      <div className="rounded-2xl glass border border-white/10 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-zinc-50 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700">
+            <thead className="bg-white/5 border-b border-white/10">
               <tr>
-                {(["date", "description", "category", "amount"] as SortField[]).map((field, i) => (
+                {(
+                  ["date", "description", "category", "amount"] as SortField[]
+                ).map((field, i) => (
                   <th
                     key={field}
                     onClick={() => handleSort(field)}
-                    className={`px-6 py-3 text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer select-none hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors ${i === 3 ? "text-right" : "text-left"}`}
+                    className={`px-6 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wider cursor-pointer select-none hover:text-zinc-200 transition-colors ${i === 3 ? "text-right" : "text-left"}`}
                   >
                     <span className="inline-flex items-center">
                       {field}
@@ -243,21 +274,21 @@ export function TransactionHistory() {
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700">
+            <tbody className="divide-y divide-white/5">
               {filteredTransactions.map((transaction) => (
                 <tr
                   key={transaction.id}
-                  className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                  className="hover:bg-white/5 transition-colors"
                 >
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-600 dark:text-zinc-400">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-500">
                     {format(new Date(transaction.date), "MMM dd, yyyy")}
                   </td>
-                  <td className="px-6 py-4 text-sm text-zinc-900 dark:text-zinc-100">
+                  <td className="px-6 py-4 text-sm text-zinc-200">
                     {transaction.description}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${categoryColors[transaction.category]}`}
+                      className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${categoryColors[transaction.category] ?? categoryColors.other}`}
                     >
                       {transaction.category}
                     </span>
@@ -265,8 +296,8 @@ export function TransactionHistory() {
                   <td
                     className={`px-6 py-4 whitespace-nowrap text-sm text-right font-semibold ${
                       transaction.amount < 0
-                        ? "text-green-600 dark:text-green-400"
-                        : "text-zinc-900 dark:text-zinc-100"
+                        ? "text-emerald-400"
+                        : "text-zinc-200"
                     }`}
                   >
                     {transaction.amount < 0 ? "-" : ""}
@@ -281,8 +312,8 @@ export function TransactionHistory() {
       </div>
 
       {/* Category Summary */}
-      <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm p-6">
-        <h3 className="text-lg font-semibold mb-4 text-zinc-900 dark:text-zinc-100">
+      <div className="rounded-2xl glass border border-white/10 p-5">
+        <h3 className="text-base font-semibold mb-4 text-zinc-200">
           Spending by Category
         </h3>
         <div className="space-y-3">
@@ -293,17 +324,17 @@ export function TransactionHistory() {
               return (
                 <div key={category}>
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100 capitalize">
+                    <span className="text-sm font-medium text-zinc-300 capitalize">
                       {category}
                     </span>
-                    <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                    <span className="text-sm font-semibold text-zinc-300">
                       {currencySymbol}
                       {total.toFixed(2)} ({percentage.toFixed(1)}%)
                     </span>
                   </div>
-                  <div className="w-full bg-zinc-200 dark:bg-zinc-700 rounded-full h-2">
+                  <div className="w-full bg-white/10 rounded-full h-1.5">
                     <div
-                      className="bg-blue-600 h-2 rounded-full transition-all"
+                      className="bg-violet-500 h-1.5 rounded-full transition-all"
                       style={{ width: `${percentage}%` }}
                     />
                   </div>

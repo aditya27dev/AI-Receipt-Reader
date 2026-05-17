@@ -319,6 +319,22 @@ export async function deleteReceipt(id: string): Promise<boolean> {
   }
 }
 
+// Update specific metadata fields on a receipt
+export async function updateReceiptMetadata(
+  id: string,
+  metadata: Record<string, string | number>
+): Promise<boolean> {
+  const client = getChromaClient();
+  try {
+    const collection = await getReceiptsCollection(client);
+    await collection.update({ ids: [id], metadatas: [metadata] });
+    return true;
+  } catch (error) {
+    console.error('Error updating receipt:', error);
+    return false;
+  }
+}
+
 // ============= BANK TRANSACTIONS =============
 
 // Save multiple bank transactions using a single batch embedding call
