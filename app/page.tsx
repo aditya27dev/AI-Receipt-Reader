@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CurrencySelector } from "@/components/currency-selector";
+import { ApiKeyBanner } from "@/components/api-key-banner";
 
 const SpendingSummary = dynamic(
   () =>
@@ -155,6 +156,8 @@ export default function Home() {
           </div>
         </div>
       </header>
+
+      <ApiKeyBanner />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Floating pill nav */}

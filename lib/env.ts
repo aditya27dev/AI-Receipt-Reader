@@ -5,9 +5,15 @@
 
 import { z } from 'zod';
 
+// In VERCEL_MODE the user supplies their own OpenAI key at runtime — env keys are not required.
+const isVercelMode = process.env.NEXT_PUBLIC_VERCEL_MODE === 'true';
+
+const optionalKey = z.string().optional();
+const requiredKey = (name: string) => z.string().min(1, `${name} is required`);
+
 const envSchema = z.object({
-    OPENAI_API_KEY: z.string().min(1, 'OPENAI_API_KEY is required'),
-    ANTHROPIC_API_KEY: z.string().min(1, 'ANTHROPIC_API_KEY is required'),
+    OPENAI_API_KEY: isVercelMode ? optionalKey : requiredKey('OPENAI_API_KEY'),
+    ANTHROPIC_API_KEY: isVercelMode ? optionalKey : requiredKey('ANTHROPIC_API_KEY'),
     CHROMA_URL: z.string().url().optional().default('http://localhost:8000'),
 });
 

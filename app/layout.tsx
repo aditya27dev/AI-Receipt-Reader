@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CurrencyProvider } from "@/lib/currency-context";
+import { ApiKeyProvider } from "@/lib/api-key-context";
 import "./globals.css";
 
 const jakartaSans = Plus_Jakarta_Sans({
@@ -33,7 +34,9 @@ export default function RootLayout({
     >
       <body className="antialiased">
         <CurrencyProvider>
-          <TooltipProvider>{children}</TooltipProvider>
+          <ApiKeyProvider>
+            <TooltipProvider>{children}</TooltipProvider>
+          </ApiKeyProvider>
         </CurrencyProvider>
         <Toaster richColors position="top-right" />
       </body>

@@ -4,6 +4,9 @@ import { useState, useRef } from "react";
 import { experimental_useObject as useObject } from "@ai-sdk/react";
 import { Receipt } from "@/lib/schemas";
 import { receiptSchema } from "@/lib/schemas";
+import { useApiKey } from "@/lib/api-key-context";
+
+const VERCEL_MODE = process.env.NEXT_PUBLIC_VERCEL_MODE === "true";
 import { Upload, Loader2, AlertCircle, X, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -35,6 +38,7 @@ async function sha256Hex(buffer: ArrayBuffer): Promise<string> {
 }
 
 export function ReceiptUploader({ onReceiptExtracted }: ReceiptUploaderProps) {
+  const { apiFetch } = useApiKey();
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<"openai" | "anthropic">(
@@ -60,6 +64,7 @@ export function ReceiptUploader({ onReceiptExtracted }: ReceiptUploaderProps) {
   } = useObject({
     api: "/api/extract-receipt",
     schema: receiptSchema,
+    fetch: apiFetch,
     onFinish: ({ object }) => {
       if (object) onReceiptExtracted(object as Receipt);
       setPendingPayload(null);
@@ -221,7 +226,9 @@ export function ReceiptUploader({ onReceiptExtracted }: ReceiptUploaderProps) {
           </SelectTrigger>
           <SelectContent className="bg-zinc-900 border-white/20 text-zinc-200">
             <SelectItem value="openai">GPT-4o (OpenAI)</SelectItem>
-            <SelectItem value="anthropic">Claude 3.5 Sonnet</SelectItem>
+            {!VERCEL_MODE && (
+              <SelectItem value="anthropic">Claude 3.5 Sonnet</SelectItem>
+            )}
           </SelectContent>
         </Select>
       </div>

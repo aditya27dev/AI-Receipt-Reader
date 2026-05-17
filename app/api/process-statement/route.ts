@@ -54,6 +54,17 @@ export async function POST(request: NextRequest) {
     });
   }
 
+  // BYOK: accept user-supplied OpenAI key from header (VERCEL_MODE)
+  const rawUserKey = request.headers.get('x-openai-key') ?? undefined;
+  const userApiKey = rawUserKey && /^sk-[A-Za-z0-9_\-]{20,}$/.test(rawUserKey) ? rawUserKey : undefined;
+
+  if (process.env.NEXT_PUBLIC_VERCEL_MODE === 'true' && modelProvider === 'openai' && !userApiKey) {
+    return new Response(JSON.stringify({ error: 'OpenAI API key required. Please enter your key in the banner.' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
     const buffer = Buffer.from(fileBase64, 'base64');
 
@@ -67,7 +78,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const model = getVisionModel(modelProvider as 'openai' | 'anthropic');
+    const model = getVisionModel(modelProvider as 'openai' | 'anthropic', userApiKey);
     const statementId = `stmt_${Date.now()}`;
 
     const result = streamObject({

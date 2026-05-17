@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { experimental_useObject as useObject } from "@ai-sdk/react";
 import { bankStatementSchema } from "@/lib/transaction-schemas";
+import { useApiKey } from "@/lib/api-key-context";
+
+const VERCEL_MODE = process.env.NEXT_PUBLIC_VERCEL_MODE === "true";
 import { Loader2, AlertCircle, FileText, CheckCircle, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -21,6 +24,7 @@ interface BankStatementUploaderProps {
 export function BankStatementUploader({
   onStatementProcessed,
 }: BankStatementUploaderProps) {
+  const { apiFetch } = useApiKey();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [finalCount, setFinalCount] = useState(0);
@@ -36,6 +40,7 @@ export function BankStatementUploader({
   } = useObject({
     api: "/api/process-statement",
     schema: bankStatementSchema,
+    fetch: apiFetch,
     onFinish: ({ object }) => {
       const count = object?.transactions?.length ?? 0;
       setFinalCount(count);
@@ -119,7 +124,9 @@ export function BankStatementUploader({
             </SelectTrigger>
             <SelectContent className="bg-zinc-900 border-white/20 text-zinc-200">
               <SelectItem value="openai">GPT-4o (OpenAI)</SelectItem>
-              <SelectItem value="anthropic">Claude 3.5 Sonnet</SelectItem>
+              {!VERCEL_MODE && (
+                <SelectItem value="anthropic">Claude 3.5 Sonnet</SelectItem>
+              )}
             </SelectContent>
           </Select>
         </div>
