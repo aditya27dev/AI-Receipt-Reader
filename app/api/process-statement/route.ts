@@ -4,6 +4,7 @@ import { bankStatementSchema } from '@/lib/transaction-schemas';
 import { saveTransactions } from '@/lib/db';
 import { getVisionModel } from '@/lib/ai';
 import { rateLimit } from '@/lib/ratelimit';
+import { getSessionUserId } from '@/lib/session';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -12,7 +13,7 @@ const MAX_PDF_BYTES = 20 * 1024 * 1024; // 20 MB base64-encoded
 
 export async function POST(request: NextRequest) {
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown';
-  const rl = rateLimit(ip, { limit: 20, windowMs: 60_000 });
+  const rl = await rateLimit(ip, { limit: 20, windowMs: 60_000 });
   if (!rl.success) {
     return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
       status: 429,
@@ -96,7 +97,9 @@ Instructions:
 - Skip balance summary lines — only include actual transactions`,
       onFinish: ({ object }) => {
         if (object?.transactions?.length) {
-          saveTransactions(object.transactions, statementId).catch(console.error);
+          getSessionUserId(request).then(userId =>
+            saveTransactions(object.transactions, statementId, userId)
+          ).catch(console.error);
         }
       },
     });

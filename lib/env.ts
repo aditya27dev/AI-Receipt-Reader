@@ -15,6 +15,8 @@ const envSchema = z.object({
     OPENAI_API_KEY: isVercelMode ? optionalKey : requiredKey('OPENAI_API_KEY'),
     ANTHROPIC_API_KEY: isVercelMode ? optionalKey : requiredKey('ANTHROPIC_API_KEY'),
     CHROMA_URL: z.string().url().optional().default('http://localhost:8000'),
+    DATABASE_URL: z.string().optional(),
+    BETTER_AUTH_SECRET: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -69,9 +69,19 @@ export function ReceiptUploader({ onReceiptExtracted }: ReceiptUploaderProps) {
       if (object) onReceiptExtracted(object as Receipt);
       setPendingPayload(null);
     },
-    onError: () => {
-      setError("Failed to extract receipt. Please try again.");
-      toast.error("Failed to extract receipt. Please try again.");
+    onError: (err) => {
+      const msg =
+        err instanceof Error
+          ? err.message.includes("401")
+            ? "API key required or invalid. Check the banner above."
+            : err.message.includes("429")
+              ? "Rate limit reached. Please wait a minute and try again."
+              : err.message.includes("413")
+                ? "Image too large. Please use an image under 10 MB."
+                : "Failed to extract receipt. Please try again."
+          : "Failed to extract receipt. Please try again.";
+      setError(msg);
+      toast.error(msg);
     },
   });
 
@@ -225,9 +235,9 @@ export function ReceiptUploader({ onReceiptExtracted }: ReceiptUploaderProps) {
             <SelectValue />
           </SelectTrigger>
           <SelectContent className="bg-zinc-900 border-white/20 text-zinc-200">
-            <SelectItem value="openai">GPT-4o (OpenAI)</SelectItem>
+            <SelectItem value="openai">OpenAI</SelectItem>
             {!VERCEL_MODE && (
-              <SelectItem value="anthropic">Claude 3.5 Sonnet</SelectItem>
+              <SelectItem value="anthropic">Anthropic</SelectItem>
             )}
           </SelectContent>
         </Select>

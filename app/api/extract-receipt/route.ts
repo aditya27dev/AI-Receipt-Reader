@@ -3,6 +3,7 @@ import { receiptSchema } from '@/lib/schemas';
 import { saveReceipt, generateImageHash, findReceiptByImageHash } from '@/lib/db';
 import { getVisionModel } from '@/lib/ai';
 import { rateLimit } from '@/lib/ratelimit';
+import { getSessionUserId } from '@/lib/session';
 import { NextRequest } from 'next/server';
 
 export const runtime = 'nodejs';
@@ -13,7 +14,7 @@ const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10 MB
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown';
-  const rl = rateLimit(ip, { limit: 20, windowMs: 60_000 });
+  const rl = await rateLimit(ip, { limit: 20, windowMs: 60_000 });
   if (!rl.success) {
     return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
       status: 429,
@@ -81,6 +82,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const model = getVisionModel(modelProvider as 'openai' | 'anthropic', userApiKey);
+    const userId = await getSessionUserId(req);
 
     const result = streamObject({
       model,
@@ -110,7 +112,7 @@ Instructions:
       ],
       onFinish: ({ object }) => {
         if (object) {
-          saveReceipt(object, imageDataUrl, imageHash).catch(console.error);
+          saveReceipt(object, imageDataUrl, imageHash, userId).catch(console.error);
         }
       },
     });

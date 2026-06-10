@@ -47,9 +47,19 @@ export function BankStatementUploader({
       setSuccess(true);
       onStatementProcessed();
     },
-    onError: () => {
-      setError("Failed to process statement. Please try again.");
-      toast.error("Failed to process statement. Please try again.");
+    onError: (err) => {
+      const msg =
+        err instanceof Error
+          ? err.message.includes("401")
+            ? "API key required or invalid. Check the banner above."
+            : err.message.includes("429")
+              ? "Rate limit reached. Please wait a minute and try again."
+              : err.message.includes("413")
+                ? "File too large. Please use a PDF under 20 MB."
+                : "Failed to process statement. Please try again."
+          : "Failed to process statement. Please try again.";
+      setError(msg);
+      toast.error(msg);
     },
   });
 
@@ -123,9 +133,9 @@ export function BankStatementUploader({
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-zinc-900 border-white/20 text-zinc-200">
-              <SelectItem value="openai">GPT-4o (OpenAI)</SelectItem>
+              <SelectItem value="openai">OpenAI</SelectItem>
               {!VERCEL_MODE && (
-                <SelectItem value="anthropic">Claude 3.5 Sonnet</SelectItem>
+                <SelectItem value="anthropic">Anthropic</SelectItem>
               )}
             </SelectContent>
           </Select>

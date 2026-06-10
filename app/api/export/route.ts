@@ -1,10 +1,19 @@
 import { getReceipts, getTransactions } from '@/lib/db';
+import { getSessionUserId } from '@/lib/session';
 import { Result } from 'oxide.ts';
 import { NextRequest } from 'next/server';
 
 export const runtime = 'nodejs';
 
 export async function GET(req: NextRequest) {
+    const userId = await getSessionUserId(req);
+    if (!userId) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+            status: 401,
+            headers: { 'Content-Type': 'application/json' },
+        });
+    }
+
     const { searchParams } = new URL(req.url);
     const format = searchParams.get('format') ?? 'json'; // 'csv' | 'json'
     const type = searchParams.get('type') ?? 'receipts'; // 'receipts' | 'transactions'
@@ -23,7 +32,7 @@ export async function GET(req: NextRequest) {
     }
 
     if (type === 'receipts') {
-        const result = await Result.safe(getReceipts(10000));
+        const result = await Result.safe(getReceipts(10000, 0, userId));
         if (result.isErr()) return new Response(JSON.stringify({ error: 'Export failed' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
         const receipts = result.unwrap();
 
@@ -61,7 +70,7 @@ export async function GET(req: NextRequest) {
     }
 
     // transactions
-    const txResult = await Result.safe(getTransactions(10000));
+    const txResult = await Result.safe(getTransactions(10000, 0, userId));
     if (txResult.isErr()) return new Response(JSON.stringify({ error: 'Export failed' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
     const transactions = txResult.unwrap();
 

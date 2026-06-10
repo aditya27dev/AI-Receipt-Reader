@@ -1,6 +1,6 @@
 # AI Receipt Scanner & Bank Statement Analyzer
 
-Made with care and to explore AI by Aditya Batra
+Built to explore multimodal AI and vector search capabilities.
 
 A full-stack AI-powered application that scans receipts and bank statements, extracts structured financial data, and delivers real-time spending analytics — all powered by vector embeddings and semantic search.
 
@@ -12,7 +12,7 @@ Upload a receipt photo or PDF bank statement → **AI extracts all data** → **
 
 | Feature                           | Description                                                                                         |
 | --------------------------------- | --------------------------------------------------------------------------------------------------- |
-| **Vision AI Receipt Scanning**    | Multimodal AI (GPT-4o & Claude 3.5) extracts merchant, items, and totals from receipt images        |
+| **Vision AI Receipt Scanning**    | Multimodal AI (OpenAI & Anthropic) extracts merchant, items, and totals from receipt images         |
 | **PDF Bank Statement Processing** | Automatically extracts transactions from bank statements with AI-powered categorization             |
 | **Transaction History & Sorting** | Sort transactions by date, description, category, or amount with visual indicators                  |
 | **Category Filtering**            | Filter transactions by spending category with real-time statistics                                  |
@@ -26,9 +26,10 @@ Upload a receipt photo or PDF bank statement → **AI extracts all data** → **
 ## Tech Stack
 
 **Frontend:** Next.js 16 · React 19 · Tailwind CSS 3 · Recharts · Lucide Icons
-**AI/ML:** Vercel AI SDK (v6) · OpenAI GPT-4o · Claude 3.5 Sonnet
+**AI/ML:** Vercel AI SDK (v6) · OpenAI · Anthropic
 **Backend:** Node.js · Next.js API Routes · PDF parsing (unpdf)
-**Database:** ChromaDB (vector embeddings) · Docker
+**Database:** PostgreSQL (Drizzle ORM) · ChromaDB (vector search) · Docker
+**Auth:** Better Auth (email/password, session-based)
 **Tools:** TypeScript 5 · Zod · ESLint 9 · pnpm
 
 ## Quick Start
@@ -67,7 +68,7 @@ POST   /api/init-db              → Initialize ChromaDB collections
 ```
 Receipt Image / PDF Upload
     ↓
-AI Vision Processing (GPT-4o or Claude 3.5)
+AI Vision Processing (OpenAI or Anthropic)
     ↓
 Structured Data Extraction + JSON Validation
     ↓

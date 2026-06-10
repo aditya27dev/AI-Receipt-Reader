@@ -10,7 +10,7 @@ pnpm install
 
 ### 2. Get Your API Keys
 
-#### Required: OpenAI (for GPT-4o vision)
+#### Required: OpenAI
 
 1. Go to https://platform.openai.com/api-keys
 2. Create a new API key
@@ -18,7 +18,7 @@ pnpm install
 
 ⚠️ **Note**: OpenAI is only needed for vision (receipt extraction). Embeddings are now handled by **Ollama (free)**!
 
-#### Optional: Anthropic (Claude 3.5 Sonnet)
+#### Optional: Anthropic
 
 1. Go to https://console.anthropic.com/
 2. Create an API key
@@ -85,7 +85,7 @@ cp .env.example .env
 Edit `.env` and add your keys:
 
 ```env
-# Required: OpenAI for GPT-4o vision
+# Required: OpenAI
 OPENAI_API_KEY=sk-proj-xxx...
 
 # Optional: Claude for alternative extraction
@@ -154,7 +154,7 @@ You should see:
 
 ### Receipt not extracted correctly
 
-- Try a different AI model (switch between GPT-4o and Claude)
+- Try a different AI model (switch between OpenAI and Anthropic)
 - Use a higher quality image
 - Make sure the receipt text is legible
 

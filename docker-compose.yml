@@ -14,8 +14,25 @@ services:
       - receipt-network
     restart: unless-stopped
 
+  postgres:
+    image: postgres:16
+    container_name: receipt-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: receipts
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - receipt-network
+    restart: unless-stopped
+
 volumes:
   chromadb-data:
+    driver: local
+  postgres-data:
     driver: local
 
 networks:

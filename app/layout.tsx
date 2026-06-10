@@ -32,7 +32,7 @@ export default function RootLayout({
       lang="en"
       className={`${jakartaSans.variable} ${jetbrainsMono.variable}`}
     >
-      <body className="antialiased">
+      <body className="antialiased" suppressHydrationWarning>
         <CurrencyProvider>
           <ApiKeyProvider>
             <TooltipProvider>{children}</TooltipProvider>

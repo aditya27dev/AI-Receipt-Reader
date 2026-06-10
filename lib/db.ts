@@ -1,7 +1,14 @@
 /**
- * ChromaDB Integration Layer
- * Copyright (c) 2026 Aditya Batra - All Rights Reserved
- * Licensed for personal use only - see LICENSE
+ * Storage Orchestration Layer
+ *
+ * Dual-write strategy:
+ *   • PostgreSQL (primary)  — structured queries, user-scoped data, analytics.
+ *   • ChromaDB  (secondary) — vector embeddings for semantic search only.
+ *
+ * When DATABASE_URL is set, PG is the source of truth for all list/read
+ * operations. ChromaDB writes are best-effort (errors are caught and logged).
+ * When DATABASE_URL is not set (local dev without PG), the app falls back to
+ * ChromaDB-only mode, which is the original behaviour.
  */
 
 import { ChromaClient } from 'chromadb';
@@ -9,6 +16,25 @@ import { Receipt } from './schemas';
 import { BankTransaction } from './transaction-schemas';
 import { createHash } from 'crypto';
 import { env } from './env';
+import {
+  saveReceiptPg,
+  getReceiptsPg,
+  findReceiptByHashPg,
+  deleteReceiptPg,
+  getSpendingSummaryPg,
+  getSpendingOverTimePg,
+  saveTransactionsPg,
+  getTransactionsPg,
+  getTransactionSummaryPg,
+  deleteTransactionPg,
+  saveBudgetPg,
+  getBudgetsPg,
+  deleteBudgetPg,
+  searchReceiptsPg,
+  type PgStoredReceipt,
+} from './pg-db';
+
+const PG_ENABLED = !!process.env.DATABASE_URL;
 
 export interface StoredReceipt extends Receipt {
   id: string;
@@ -48,11 +74,13 @@ async function generateEmbedding(text: string): Promise<number[]> {
 
 /** Batch-generate embeddings — single API call regardless of input size */
 async function generateEmbeddings(texts: string[]): Promise<number[][]> {
+  const apiKey = env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error('OPENAI_API_KEY not set — cannot generate embeddings');
   const response = await fetch('https://api.openai.com/v1/embeddings', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${env.OPENAI_API_KEY}`,
+      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
       model: 'text-embedding-3-small',
@@ -147,21 +175,53 @@ function metadataToReceipt(id: string, metadata: Record<string, string>): Stored
   };
 }
 
-// Save a receipt to ChromaDB
-export async function saveReceipt(receipt: Receipt, imageUrl?: string, imageHash?: string): Promise<StoredReceipt> {
+export async function saveReceipt(
+  receipt: Receipt,
+  imageUrl?: string,
+  imageHash?: string,
+  userId?: string | null,
+): Promise<StoredReceipt> {
+  if (PG_ENABLED) {
+    const stored = await saveReceiptPg(receipt, userId ?? null, imageUrl, imageHash);
+    // ChromaDB: best-effort secondary write for semantic search
+    try {
+      const client = getChromaClient();
+      const collection = await getReceiptsCollection(client);
+      const receiptText = createReceiptText(receipt);
+      const embedding = await generateEmbedding(receiptText);
+      await collection.add({
+        ids: [stored.id],
+        embeddings: [embedding],
+        metadatas: [{
+          merchantName: receipt.merchantName,
+          merchantAddress: receipt.merchantAddress,
+          date: receipt.date,
+          time: receipt.time,
+          subtotal: receipt.subtotal.toString(),
+          tax: receipt.tax.toString(),
+          total: receipt.total.toString(),
+          paymentMethod: receipt.paymentMethod,
+          currency: receipt.currency,
+          imageUrl: imageUrl || '',
+          imageHash: imageHash || '',
+          createdAt: stored.createdAt.toISOString(),
+          itemsJson: JSON.stringify(receipt.items),
+        }],
+        documents: [receiptText],
+      });
+    } catch (e) {
+      console.warn('ChromaDB write failed (non-fatal):', e);
+    }
+    return stored;
+  }
+
+  // ChromaDB-only fallback
   const client = getChromaClient();
-
-  // Get or create collection - we provide embeddings manually via OpenAI
   const collection = await getReceiptsCollection(client);
-
   const id = `receipt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   const createdAt = new Date();
-
-  // Generate embedding for semantic search
   const receiptText = createReceiptText(receipt);
   const embedding = await generateEmbedding(receiptText);
-
-  // Store receipt with metadata
   await collection.add({
     ids: [id],
     embeddings: [embedding],
@@ -182,7 +242,6 @@ export async function saveReceipt(receipt: Receipt, imageUrl?: string, imageHash
     }],
     documents: [receiptText],
   });
-
   return { id, ...receipt, imageUrl, imageHash, createdAt };
 }
 
@@ -191,29 +250,18 @@ export function generateImageHash(buffer: Buffer): string {
   return createHash('sha256').update(new Uint8Array(buffer)).digest('hex');
 }
 
-// Check if a receipt with the same image hash already exists
 export async function findReceiptByImageHash(imageHash: string): Promise<StoredReceipt | null> {
-  const client = getChromaClient();
+  if (PG_ENABLED) return findReceiptByHashPg(imageHash);
 
+  const client = getChromaClient();
   try {
     const collection = await getReceiptsCollection(client);
-
-    // Get all receipts and filter by imageHash
     const results = await collection.get({});
-
-    if (!results.ids || results.ids.length === 0) {
-      return null;
-    }
-
-    // Find receipt with matching hash
+    if (!results.ids || results.ids.length === 0) return null;
     const index = results.metadatas?.findIndex(
-      (metadata) => (metadata as Record<string, string>)?.imageHash === imageHash
+      (metadata) => (metadata as Record<string, string>)?.imageHash === imageHash,
     );
-
-    if (index === -1 || index === undefined) {
-      return null;
-    }
-
+    if (index === -1 || index === undefined) return null;
     const metadata = results.metadatas?.[index] as Record<string, string>;
     return metadataToReceipt(results.ids[index], metadata);
   } catch (error) {
@@ -222,30 +270,25 @@ export async function findReceiptByImageHash(imageHash: string): Promise<StoredR
   }
 }
 
-// Get all receipts from ChromaDB
-export async function getReceipts(limit = 50, offset = 0): Promise<StoredReceipt[]> {
+export async function getReceipts(
+  limit = 50,
+  offset = 0,
+  userId?: string | null,
+): Promise<StoredReceipt[]> {
+  if (PG_ENABLED) return getReceiptsPg(userId ?? null, limit, offset);
+
   const client = getChromaClient();
-
   const collection = await getReceiptsCollection(client);
-
-  const results = await collection.get({
-    limit: limit + offset,
-  });
-
-  if (!results.ids || results.ids.length === 0) {
-    return [];
-  }
-
+  const results = await collection.get({ limit: limit + offset });
+  if (!results.ids || results.ids.length === 0) return [];
   return results.ids
-    .map((id, index) =>
-      metadataToReceipt(id, results.metadatas?.[index] as Record<string, string>)
-    )
+    .map((id, index) => metadataToReceipt(id, results.metadatas?.[index] as Record<string, string>))
     .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
     .slice(offset, offset + limit);
 }
 
-// Get spending summary by category
-export async function getSpendingSummary() {
+export async function getSpendingSummary(userId?: string | null) {
+  if (PG_ENABLED) return getSpendingSummaryPg(userId ?? null);
   const receipts = await getReceipts(1000);
   const categoryMap = new Map<string, { totalSpent: number; count: number }>();
   receipts.forEach(receipt => {
@@ -262,8 +305,8 @@ export async function getSpendingSummary() {
     .sort((a, b) => b.totalSpent - a.totalSpent);
 }
 
-// Get spending over time
-export async function getSpendingOverTime(days = 30) {
+export async function getSpendingOverTime(days = 30, userId?: string | null) {
+  if (PG_ENABLED) return getSpendingOverTimePg(userId ?? null, days);
   const receipts = await getReceipts(1000);
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - days);
@@ -279,7 +322,11 @@ export async function getSpendingOverTime(days = 30) {
 }
 
 // Semantic search for receipts
-export async function searchReceipts(query: string, limit = 10): Promise<StoredReceipt[]> {
+export async function searchReceipts(query: string, limit = 10, userId?: string | null): Promise<StoredReceipt[]> {
+  if (PG_ENABLED) {
+    return searchReceiptsPg(query, limit, userId ?? null);
+  }
+
   const client = getChromaClient();
 
   // Get or create collection - we provide embeddings manually
@@ -301,17 +348,20 @@ export async function searchReceipts(query: string, limit = 10): Promise<StoredR
   });
 }
 
-// Delete a receipt by ID
-export async function deleteReceipt(id: string): Promise<boolean> {
+export async function deleteReceipt(id: string, userId?: string | null): Promise<boolean> {
+  if (PG_ENABLED) {
+    const ok = await deleteReceiptPg(id, userId ?? null);
+    try {
+      const client = getChromaClient();
+      const col = await getReceiptsCollection(client);
+      await col.delete({ ids: [id] });
+    } catch { /* non-fatal */ }
+    return ok;
+  }
   const client = getChromaClient();
-
   try {
     const collection = await getReceiptsCollection(client);
-
-    await collection.delete({
-      ids: [id],
-    });
-
+    await collection.delete({ ids: [id] });
     return true;
   } catch (error) {
     console.error('Error deleting receipt:', error);
@@ -337,28 +387,47 @@ export async function updateReceiptMetadata(
 
 // ============= BANK TRANSACTIONS =============
 
-// Save multiple bank transactions using a single batch embedding call
 export async function saveTransactions(
   transactions: BankTransaction[],
-  statementId?: string
+  statementId?: string,
+  userId?: string | null,
 ): Promise<string[]> {
   if (transactions.length === 0) return [];
+  if (PG_ENABLED) {
+    const ids = await saveTransactionsPg(transactions, statementId, userId ?? null);
+    try {
+      const client = getChromaClient();
+      const collection = await getTransactionsCollection(client);
+      const texts = transactions.map(
+        t => `${t.description} on ${t.date}. Category: ${t.category}. Amount: ${t.amount} ${t.currency}`,
+      );
+      const embeddings = await generateEmbeddings(texts);
+      const now = new Date().toISOString();
+      const metadatas: Record<string, string>[] = transactions.map(t => ({
+        date: t.date,
+        description: t.description,
+        amount: t.amount.toString(),
+        category: t.category,
+        currency: t.currency,
+        statementId: statementId || '',
+        createdAt: now,
+      }));
+      await collection.add({ ids, embeddings, documents: texts, metadatas });
+    } catch (e) {
+      console.warn('ChromaDB transaction write failed (non-fatal):', e);
+    }
+    return ids;
+  }
 
+  // ChromaDB-only fallback
   const client = getChromaClient();
   const collection = await getTransactionsCollection(client);
-
   const texts = transactions.map(
-    t => `${t.description} on ${t.date}. Category: ${t.category}. Amount: ${t.amount} ${t.currency}`
+    t => `${t.description} on ${t.date}. Category: ${t.category}. Amount: ${t.amount} ${t.currency}`,
   );
-
-  // Single batch API call — replaces N sequential calls
   const embeddings = await generateEmbeddings(texts);
-
   const now = new Date().toISOString();
-  const ids = transactions.map(
-    () => `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-  );
-
+  const ids = transactions.map(() => `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
   const metadatas: Record<string, string>[] = transactions.map(t => ({
     date: t.date,
     description: t.description,
@@ -368,24 +437,22 @@ export async function saveTransactions(
     statementId: statementId || '',
     createdAt: now,
   }));
-
   await collection.add({ ids, embeddings, documents: texts, metadatas });
-
   return ids;
 }
 
-// Get all bank transactions
-export async function getTransactions(limit = 100, offset = 0): Promise<StoredTransaction[]> {
-  const client = getChromaClient();
+export async function getTransactions(
+  limit = 100,
+  offset = 0,
+  userId?: string | null,
+): Promise<StoredTransaction[]> {
+  if (PG_ENABLED) return getTransactionsPg(userId ?? null, limit, offset);
 
+  const client = getChromaClient();
   try {
     const collection = await getTransactionsCollection(client);
     const results = await collection.get({ limit: limit + offset });
-
-    if (!results.ids || results.ids.length === 0) {
-      return [];
-    }
-
+    if (!results.ids || results.ids.length === 0) return [];
     return results.ids
       .map((id, index) => {
         const metadata = results.metadatas?.[index] as Record<string, string> | undefined;
@@ -408,8 +475,8 @@ export async function getTransactions(limit = 100, offset = 0): Promise<StoredTr
   }
 }
 
-// Get transaction spending summary by category
-export async function getTransactionSummary() {
+export async function getTransactionSummary(userId?: string | null) {
+  if (PG_ENABLED) return getTransactionSummaryPg(userId ?? null);
   const transactions = await getTransactions(1000);
   const categoryMap = new Map<string, { totalSpent: number; count: number }>();
   transactions.forEach(transaction => {
@@ -426,17 +493,20 @@ export async function getTransactionSummary() {
     .sort((a, b) => b.totalSpent - a.totalSpent);
 }
 
-// Delete a transaction
-export async function deleteTransaction(id: string): Promise<boolean> {
+export async function deleteTransaction(id: string, userId?: string | null): Promise<boolean> {
+  if (PG_ENABLED) {
+    const ok = await deleteTransactionPg(id, userId ?? null);
+    try {
+      const client = getChromaClient();
+      const col = await getTransactionsCollection(client);
+      await col.delete({ ids: [id] });
+    } catch { /* non-fatal */ }
+    return ok;
+  }
   const client = getChromaClient();
-
   try {
     const collection = await getTransactionsCollection(client);
-
-    await collection.delete({
-      ids: [id],
-    });
-
+    await collection.delete({ ids: [id] });
     return true;
   } catch (error) {
     console.error('Error deleting transaction:', error);
@@ -446,11 +516,15 @@ export async function deleteTransaction(id: string): Promise<boolean> {
 
 // ============= BUDGETS =============
 
-export async function saveBudget(category: string, limitAmount: number): Promise<Budget> {
+export async function saveBudget(
+  category: string,
+  limitAmount: number,
+  userId?: string | null,
+): Promise<Budget> {
+  if (PG_ENABLED) return saveBudgetPg(category, limitAmount, userId ?? null);
+
   const client = getChromaClient();
   const collection = await getBudgetsCollection(client);
-
-  // Replace existing budget for this category
   const existing = await collection.get({});
   if (existing.ids?.length) {
     const idx = existing.metadatas?.findIndex(
@@ -460,34 +534,25 @@ export async function saveBudget(category: string, limitAmount: number): Promise
       await collection.delete({ ids: [existing.ids[idx]] });
     }
   }
-
   const id = `budget_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   const createdAt = new Date();
-  // Budgets don't need semantic search — use a zero embedding
   const zeroEmbedding = new Array(1536).fill(0);
-
   await collection.add({
     ids: [id],
     embeddings: [zeroEmbedding],
-    metadatas: [{
-      category,
-      limitAmount: limitAmount.toString(),
-      period: 'monthly',
-      createdAt: createdAt.toISOString(),
-    }],
+    metadatas: [{ category, limitAmount: limitAmount.toString(), period: 'monthly', createdAt: createdAt.toISOString() }],
     documents: [`Budget for ${category}: ${limitAmount}`],
   });
-
   return { id, category, limitAmount, period: 'monthly', createdAt };
 }
 
-export async function getBudgets(): Promise<Budget[]> {
+export async function getBudgets(userId?: string | null): Promise<Budget[]> {
+  if (PG_ENABLED) return getBudgetsPg(userId ?? null);
   const client = getChromaClient();
   try {
     const collection = await getBudgetsCollection(client);
     const results = await collection.get({});
     if (!results.ids || results.ids.length === 0) return [];
-
     return results.ids.map((id, index) => {
       const m = results.metadatas?.[index] as Record<string, string>;
       return {
@@ -503,7 +568,8 @@ export async function getBudgets(): Promise<Budget[]> {
   }
 }
 
-export async function deleteBudget(id: string): Promise<boolean> {
+export async function deleteBudget(id: string, userId?: string | null): Promise<boolean> {
+  if (PG_ENABLED) return deleteBudgetPg(id, userId ?? null);
   const client = getChromaClient();
   try {
     const collection = await getBudgetsCollection(client);

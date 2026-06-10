@@ -1,11 +1,13 @@
 import { getBudgets, saveBudget, deleteBudget } from '@/lib/db';
+import { getSessionUserId } from '@/lib/session';
 import { Result } from 'oxide.ts';
 import { NextRequest, NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 
-export async function GET() {
-    const result = await Result.safe(getBudgets());
+export async function GET(req: NextRequest) {
+    const userId = await getSessionUserId(req);
+    const result = await Result.safe(getBudgets(userId));
     if (result.isErr()) return NextResponse.json({ error: 'Failed to fetch budgets' }, { status: 500 });
     return NextResponse.json({ budgets: result.unwrap() });
 }
@@ -27,7 +29,8 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'limitAmount must be a positive number' }, { status: 400 });
     }
 
-    const result = await Result.safe(saveBudget(category.trim(), limitAmount));
+    const userId = await getSessionUserId(req);
+    const result = await Result.safe(saveBudget(category.trim(), limitAmount, userId));
     if (result.isErr()) return NextResponse.json({ error: 'Failed to save budget' }, { status: 500 });
     return NextResponse.json({ budget: result.unwrap() }, { status: 201 });
 }
@@ -40,7 +43,8 @@ export async function DELETE(req: NextRequest) {
         return NextResponse.json({ error: 'Missing id parameter' }, { status: 400 });
     }
 
-    const result = await Result.safe(deleteBudget(id));
+    const userId = await getSessionUserId(req);
+    const result = await Result.safe(deleteBudget(id, userId));
     if (result.isErr()) return NextResponse.json({ error: 'Failed to delete budget' }, { status: 500 });
     return NextResponse.json({ success: result.unwrap() });
 }

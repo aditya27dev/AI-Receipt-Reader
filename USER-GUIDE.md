@@ -6,7 +6,7 @@ Welcome! This guide will help you understand and use the AI Receipt Scanner appl
 
 The AI Receipt Scanner helps you:
 
-- 📸 **Scan receipts** using AI vision technology (GPT-4o or Claude)
+- 📸 **Scan receipts** using AI vision technology (OpenAI or Anthropic)
 - 🏦 **Analyze bank statements** by uploading PDF files
 - 📊 **Track spending** with automatic categorization
 - 🔍 **Search transactions** using natural language
@@ -64,7 +64,7 @@ View bank statement transactions and manage spending data.
 
 ```
 1. Open App → Receipt Scanner Tab
-2. Select AI Model (GPT-4o or Claude)
+2. Select AI Model (OpenAI or Anthropic)
 3. Upload Receipt Image (drag & drop or click)
 4. AI Extracts Data (merchant, items, total, etc.)
 5. Data Saved to Database with Embeddings
@@ -77,8 +77,8 @@ View bank statement transactions and manage spending data.
    - The first tab in the app
 
 2. **Choose Your AI Model**
-   - **GPT-4o** - Best overall accuracy (recommended)
-   - **Claude 3.5 Sonnet** - Excellent for complex receipts
+   - **OpenAI** - Best overall accuracy (recommended)
+   - **Anthropic** - Excellent for complex receipts
 
 3. **Upload a Receipt**
    - Click the upload area OR
@@ -289,8 +289,8 @@ The app includes powerful semantic search:
 
 ### 🤖 AI Models
 
-- **GPT-4o**: Best accuracy, slightly more expensive
-- **Claude 3.5 Sonnet**: Great for tricky receipts, good value
+- **OpenAI**: Best accuracy, slightly more expensive
+- **Anthropic**: Great for tricky receipts, good value
 
 ### 📦 Vector Database
 
@@ -374,7 +374,7 @@ http://localhost:3000
        ▼
 ┌─────────────────┐
 │  AI Processing  │
-│  (GPT-4o or     │
+│  (OpenAI or     │
 │   Claude)       │
 └──────┬──────────┘
        │

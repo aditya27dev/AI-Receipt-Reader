@@ -18,6 +18,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { CurrencySelector } from "@/components/currency-selector";
 import { ApiKeyBanner } from "@/components/api-key-banner";
+import { AuthGuard } from "@/components/auth/auth-guard";
+import { ErrorBoundary } from "@/components/error-boundary";
+import { authClient } from "@/lib/auth-client";
+import { LogOut } from "lucide-react";
 
 const SpendingSummary = dynamic(
   () =>
@@ -104,6 +108,7 @@ export default function Home() {
   const [refreshHistory, setRefreshHistory] = useState(0);
   const [refreshTransactions, setRefreshTransactions] = useState(0);
   const [searchOpen, setSearchOpen] = useState(false);
+  const { data: session } = authClient.useSession();
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -127,150 +132,172 @@ export default function Home() {
   };
 
   return (
-    <div className="aurora-bg min-h-screen">
-      {/* Sticky glass header */}
-      <header className="sticky top-0 z-40 glass border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg">
-              <ScanLine className="w-4 h-4 text-white" />
-            </div>
-            <span className="shimmer-text text-xl font-bold tracking-tight">
-              Receipt AI
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <CurrencySelector />
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSearchOpen(true)}
-              className="glass border-white/20 text-zinc-300 hover:text-white hover:bg-white/10 gap-2 hidden sm:flex"
-            >
-              <Search className="w-3.5 h-3.5" />
-              Search
-              <kbd className="ml-1 pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border border-white/20 bg-white/5 px-1.5 font-mono text-[10px] font-medium text-zinc-400">
-                ⌘K
-              </kbd>
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      <ApiKeyBanner />
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Floating pill nav */}
-        <nav className="flex gap-1 p-1 rounded-2xl glass border border-white/10 w-fit mx-auto mb-8">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`relative flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors duration-200 ${
-                activeTab === tab.id
-                  ? "text-white"
-                  : "text-zinc-400 hover:text-zinc-200"
-              }`}
-            >
-              {activeTab === tab.id && (
-                <motion.div
-                  layoutId="pill"
-                  className="absolute inset-0 rounded-xl bg-gradient-to-r from-violet-600/60 to-indigo-600/60 shadow-lg"
-                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                />
-              )}
-              <span className="relative z-10">{tab.icon}</span>
-              <span className="relative z-10 hidden sm:inline">
-                {tab.label}
+    <AuthGuard>
+      <div className="aurora-bg min-h-screen">
+        {/* Sticky glass header */}
+        <header className="sticky top-0 z-40 glass border-b border-white/10">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg">
+                <ScanLine className="w-4 h-4 text-white" />
+              </div>
+              <span className="shimmer-text text-xl font-bold tracking-tight">
+                Receipt AI
               </span>
-            </button>
-          ))}
-        </nav>
+            </div>
+            <div className="flex items-center gap-2">
+              <CurrencySelector />
+              {session && (
+                <span className="text-xs text-white/40 hidden sm:inline">
+                  {session.user.email}
+                </span>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSearchOpen(true)}
+                className="glass border-white/20 text-zinc-300 hover:text-white hover:bg-white/10 gap-2 hidden sm:flex"
+              >
+                <Search className="w-3.5 h-3.5" />
+                Search
+                <kbd className="ml-1 pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border border-white/20 bg-white/5 px-1.5 font-mono text-[10px] font-medium text-zinc-400">
+                  ⌘K
+                </kbd>
+              </Button>
+              {session && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => authClient.signOut()}
+                  className="text-zinc-400 hover:text-white"
+                  title="Sign out"
+                >
+                  <LogOut className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
+          </div>
+        </header>
 
-        {/* Tab content */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-          >
-            {activeTab === "dashboard" && (
-              <Dashboard
-                onNavigate={(tab: string) => setActiveTab(tab as Tab)}
-                onScanClick={() => setActiveTab("scan")}
-              />
-            )}
+        <ApiKeyBanner />
 
-            {activeTab === "scan" && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div>
-                  <h2 className="text-2xl font-bold text-white mb-4">
-                    Upload Receipt
-                  </h2>
-                  <ReceiptUploader
-                    onReceiptExtracted={handleReceiptExtracted}
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          {/* Floating pill nav */}
+          <nav className="flex gap-1 p-1 rounded-2xl glass border border-white/10 w-fit mx-auto mb-8">
+            {TABS.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`relative flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors duration-200 ${
+                  activeTab === tab.id
+                    ? "text-white"
+                    : "text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                {activeTab === tab.id && (
+                  <motion.div
+                    layoutId="pill"
+                    className="absolute inset-0 rounded-xl bg-gradient-to-r from-violet-600/60 to-indigo-600/60 shadow-lg"
+                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
                   />
-                </div>
-                {latestReceipt ? (
-                  <div>
-                    <h2 className="text-2xl font-bold text-white mb-4">
-                      Extracted Data
-                    </h2>
-                    <ReceiptDisplay receipt={latestReceipt} />
-                  </div>
-                ) : (
-                  <div className="hidden lg:flex flex-col items-center justify-center rounded-2xl glass border border-white/10 min-h-[320px]">
-                    <ScanLine className="w-12 h-12 text-zinc-600 mb-3" />
-                    <p className="text-zinc-500 text-sm">
-                      Extracted receipt data will appear here
-                    </p>
+                )}
+                <span className="relative z-10">{tab.icon}</span>
+                <span className="relative z-10 hidden sm:inline">
+                  {tab.label}
+                </span>
+              </button>
+            ))}
+          </nav>
+
+          {/* Tab content */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+            >
+              <ErrorBoundary>
+                {activeTab === "dashboard" && (
+                  <Dashboard
+                    onNavigate={(tab: string) => setActiveTab(tab as Tab)}
+                    onScanClick={() => setActiveTab("scan")}
+                  />
+                )}
+
+                {activeTab === "scan" && (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                      <h2 className="text-2xl font-bold text-white mb-4">
+                        Upload Receipt
+                      </h2>
+                      <ReceiptUploader
+                        onReceiptExtracted={handleReceiptExtracted}
+                      />
+                    </div>
+                    {latestReceipt ? (
+                      <div>
+                        <h2 className="text-2xl font-bold text-white mb-4">
+                          Extracted Data
+                        </h2>
+                        <ReceiptDisplay receipt={latestReceipt} />
+                      </div>
+                    ) : (
+                      <div className="hidden lg:flex flex-col items-center justify-center rounded-2xl glass border border-white/10 min-h-[320px]">
+                        <ScanLine className="w-12 h-12 text-zinc-600 mb-3" />
+                        <p className="text-zinc-500 text-sm">
+                          Extracted receipt data will appear here
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
-              </div>
-            )}
 
-            {activeTab === "transactions" && (
-              <div className="space-y-8">
-                <BankStatementUploader
-                  onStatementProcessed={handleStatementProcessed}
-                />
-                <div>
-                  <h2 className="text-2xl font-bold text-white mb-4">
-                    All Transactions
-                  </h2>
-                  <TransactionHistory key={refreshTransactions} />
-                </div>
-              </div>
-            )}
+                {activeTab === "transactions" && (
+                  <div className="space-y-8">
+                    <BankStatementUploader
+                      onStatementProcessed={handleStatementProcessed}
+                    />
+                    <div>
+                      <h2 className="text-2xl font-bold text-white mb-4">
+                        All Transactions
+                      </h2>
+                      <TransactionHistory key={refreshTransactions} />
+                    </div>
+                  </div>
+                )}
 
-            {activeTab === "analytics" && <SpendingSummary />}
+                {activeTab === "analytics" && <SpendingSummary />}
 
-            {activeTab === "history" && <ReceiptHistory key={refreshHistory} />}
+                {activeTab === "history" && (
+                  <ReceiptHistory key={refreshHistory} />
+                )}
 
-            {activeTab === "budget" && (
-              <div>
-                <h2 className="text-2xl font-bold text-white mb-6">
-                  Monthly Budgets
-                </h2>
-                <BudgetManager />
-              </div>
-            )}
-          </motion.div>
-        </AnimatePresence>
-      </main>
+                {activeTab === "budget" && (
+                  <div>
+                    <h2 className="text-2xl font-bold text-white mb-6">
+                      Monthly Budgets
+                    </h2>
+                    <BudgetManager />
+                  </div>
+                )}
+              </ErrorBoundary>
+            </motion.div>
+          </AnimatePresence>
+        </main>
 
-      {searchOpen && (
-        <SearchModal
-          open={searchOpen}
-          onClose={() => setSearchOpen(false)}
-          onNavigate={(tab: string) => {
-            setActiveTab(tab as Tab);
-            setSearchOpen(false);
-          }}
-        />
-      )}
-    </div>
+        {searchOpen && (
+          <SearchModal
+            open={searchOpen}
+            onClose={() => setSearchOpen(false)}
+            onNavigate={(tab: string) => {
+              setActiveTab(tab as Tab);
+              setSearchOpen(false);
+            }}
+          />
+        )}
+      </div>
+    </AuthGuard>
   );
 }
