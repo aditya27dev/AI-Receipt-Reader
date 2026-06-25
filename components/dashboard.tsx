@@ -317,8 +317,11 @@ export function Dashboard({ onNavigate, onScanClick }: DashboardProps) {
                     borderRadius: 8,
                     color: "#fff",
                   }}
-                  formatter={(v: number | undefined) =>
-                    [`$${(v ?? 0).toFixed(2)}`, "Spend"] as [string, string]
+                  formatter={(v) =>
+                    [`$${(Number(v) ?? 0).toFixed(2)}`, "Spend"] as [
+                      string,
+                      string,
+                    ]
                   }
                 />
                 <Area
