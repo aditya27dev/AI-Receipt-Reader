@@ -1,0 +1,59 @@
+{
+  "id": "03-pharmacy-boots",
+  "schema": "receipt",
+  "description": "UK pharmacy — AI used invalid category 'medicine' (not in schema enum)",
+  "rawOutput": {
+    "merchantName": "Boots Pharmacy",
+    "merchantAddress": "London Bridge Station, London, SE1 9SP",
+    "date": "2026-06-01",
+    "time": "11:15",
+    "items": [
+      {
+        "name": "Ibuprofen 400mg x24",
+        "quantity": 1,
+        "unitPrice": 3.49,
+        "totalPrice": 3.49,
+        "category": "medicine"
+      },
+      {
+        "name": "Vitamin D 1000IU x90",
+        "quantity": 1,
+        "unitPrice": 5.99,
+        "totalPrice": 5.99,
+        "category": "healthcare"
+      }
+    ],
+    "subtotal": 9.48,
+    "tax": 0.0,
+    "total": 9.48,
+    "paymentMethod": "debit",
+    "currency": "GBP"
+  },
+  "expected": {
+    "merchantName": "Boots Pharmacy",
+    "merchantAddress": "London Bridge Station, London, SE1 9SP",
+    "date": "2026-06-01",
+    "time": "11:15",
+    "items": [
+      {
+        "name": "Ibuprofen 400mg x24",
+        "quantity": 1,
+        "unitPrice": 3.49,
+        "totalPrice": 3.49,
+        "category": "healthcare"
+      },
+      {
+        "name": "Vitamin D 1000IU x90",
+        "quantity": 1,
+        "unitPrice": 5.99,
+        "totalPrice": 5.99,
+        "category": "healthcare"
+      }
+    ],
+    "subtotal": 9.48,
+    "tax": 0.0,
+    "total": 9.48,
+    "paymentMethod": "debit",
+    "currency": "GBP"
+  }
+}
