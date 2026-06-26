@@ -31,7 +31,6 @@ import {
   getBudgetsPg,
   deleteBudgetPg,
   searchReceiptsPg,
-  type PgStoredReceipt,
 } from './pg-db';
 
 const PG_ENABLED = !!process.env.DATABASE_URL;

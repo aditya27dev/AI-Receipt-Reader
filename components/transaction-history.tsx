@@ -13,7 +13,6 @@ import {
   ChevronsUpDown,
   Download,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,10 +46,6 @@ export function TransactionHistory() {
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
-  useEffect(() => {
-    fetchTransactions();
-  }, []);
-
   const fetchTransactions = async () => {
     try {
       const response = await fetch("/api/transactions");
@@ -62,6 +57,13 @@ export function TransactionHistory() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchTransactions();
+  }, []);
+
+  const { symbol: currencySymbol } = useCurrency();
 
   if (loading) {
     return (
@@ -150,8 +152,6 @@ export function TransactionHistory() {
           return dir * (a.amount - b.amount);
       }
     });
-
-  const { symbol: currencySymbol } = useCurrency();
 
   return (
     <div className="space-y-6">

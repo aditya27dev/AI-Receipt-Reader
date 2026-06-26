@@ -117,6 +117,7 @@ export function SearchModal({ open, onClose, onNavigate }: SearchModalProps) {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     search(debouncedQuery);
   }, [debouncedQuery, search]);
 

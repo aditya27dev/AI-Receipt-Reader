@@ -1,4 +1,3 @@
-import type { NextConfig } from 'next/dist/server/config-shared';
 import { defineConfig } from 'drizzle-kit';
 
 export default defineConfig({

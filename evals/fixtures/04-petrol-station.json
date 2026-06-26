@@ -1,0 +1,59 @@
+{
+  "id": "04-petrol-station",
+  "schema": "receipt",
+  "description": "UK petrol station — AI missed address, used currency symbol instead of code, and wrong payment method",
+  "rawOutput": {
+    "merchantName": "Shell",
+    "merchantAddress": "",
+    "date": "2026-06-10",
+    "time": "07:18",
+    "items": [
+      {
+        "name": "Unleaded Petrol 45L",
+        "quantity": 1,
+        "unitPrice": 68.4,
+        "totalPrice": 68.4,
+        "category": "transportation"
+      },
+      {
+        "name": "Coffee Americano",
+        "quantity": 1,
+        "unitPrice": 1.8,
+        "totalPrice": 1.8,
+        "category": "dining"
+      }
+    ],
+    "subtotal": 70.2,
+    "tax": 14.04,
+    "total": 84.24,
+    "paymentMethod": "other",
+    "currency": "£"
+  },
+  "expected": {
+    "merchantName": "Shell",
+    "merchantAddress": "Shell Forecourt, A40 Western Ave, London, W3 7JU",
+    "date": "2026-06-10",
+    "time": "07:18",
+    "items": [
+      {
+        "name": "Unleaded Petrol 45L",
+        "quantity": 1,
+        "unitPrice": 68.4,
+        "totalPrice": 68.4,
+        "category": "transportation"
+      },
+      {
+        "name": "Coffee Americano",
+        "quantity": 1,
+        "unitPrice": 1.8,
+        "totalPrice": 1.8,
+        "category": "dining"
+      }
+    ],
+    "subtotal": 70.2,
+    "tax": 14.04,
+    "total": 84.24,
+    "paymentMethod": "credit",
+    "currency": "GBP"
+  }
+}
