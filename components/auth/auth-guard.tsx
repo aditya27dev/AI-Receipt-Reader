@@ -49,9 +49,9 @@ export function AuthGuard({ children }: AuthGuardProps) {
   if (!session) {
     return (
       <div className="aurora-bg min-h-screen flex items-center justify-center p-4">
-        <div className="w-full max-w-sm space-y-4">
+        <div className="w-full max-w-3xl flex flex-col sm:flex-row items-center sm:items-stretch gap-4">
           {/* One-click demo */}
-          <div className="glass-card rounded-2xl p-6 text-center space-y-3 border border-violet-500/30">
+          <div className="glass-card rounded-2xl p-6 text-center space-y-3 border border-violet-500/30 w-full sm:w-1/2">
             <div className="flex justify-center">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center">
                 <ScanLine className="w-5 h-5 text-white" />
@@ -81,18 +81,25 @@ export function AuthGuard({ children }: AuthGuardProps) {
           </div>
 
           {/* Divider */}
-          <div className="flex items-center gap-3">
+          <div className="hidden sm:flex flex-col items-center gap-2">
+            <div className="flex-1 w-px bg-white/10" />
+            <span className="text-xs text-white/30">or</span>
+            <div className="flex-1 w-px bg-white/10" />
+          </div>
+          <div className="flex sm:hidden items-center gap-3 w-full">
             <div className="flex-1 h-px bg-white/10" />
             <span className="text-xs text-white/30">or</span>
             <div className="flex-1 h-px bg-white/10" />
           </div>
 
           {/* Regular auth forms */}
-          {mode === "sign-in" ? (
-            <SignInForm onSwitch={() => setMode("sign-up")} />
-          ) : (
-            <SignUpForm onSwitch={() => setMode("sign-in")} />
-          )}
+          <div className="w-full sm:w-1/2">
+            {mode === "sign-in" ? (
+              <SignInForm onSwitch={() => setMode("sign-up")} />
+            ) : (
+              <SignUpForm onSwitch={() => setMode("sign-in")} />
+            )}
+          </div>
         </div>
       </div>
     );
