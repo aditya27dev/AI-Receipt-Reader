@@ -4,7 +4,8 @@ import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CurrencyProvider } from "@/lib/currency-context";
 import { ApiKeyProvider } from "@/lib/api-key-context";
-import { GoogleAnalytics } from "@next/third-parties/google";
+import { GoogleTagManager } from "@next/third-parties/google";
+import { CookieBanner } from "@/components/cookie-banner";
 import "./globals.css";
 
 const jakartaSans = Plus_Jakarta_Sans({
@@ -33,15 +34,14 @@ export default function RootLayout({
       lang="en"
       className={`${jakartaSans.variable} ${jetbrainsMono.variable}`}
     >
+      <GoogleTagManager gtmId={process.env.NEXT_PUBLIC_GTM_ID!} />
       <body className="antialiased" suppressHydrationWarning>
         <CurrencyProvider>
           <ApiKeyProvider>
             <TooltipProvider>{children}</TooltipProvider>
           </ApiKeyProvider>
         </CurrencyProvider>
-        {process.env.NEXT_PUBLIC_GA_ID && (
-          <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID} />
-        )}
+        <CookieBanner />
         <Toaster richColors position="top-right" />
       </body>
     </html>
