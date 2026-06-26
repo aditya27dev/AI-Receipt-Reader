@@ -16,7 +16,6 @@ import {
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -95,12 +94,8 @@ export function ReceiptHistory() {
     });
   }, [receipts, searchQuery, dateFrom, dateTo]);
 
-  useEffect(() => {
-    fetchReceipts(1, true);
-  }, []);
-
   const fetchReceipts = async (pageNum: number, replace = false) => {
-    replace ? setLoading(true) : setLoadingMore(true);
+    if (!replace) setLoadingMore(true);
     try {
       const response = await fetch(
         `/api/receipts?page=${pageNum}&limit=${PAGE_SIZE}`,
@@ -117,6 +112,11 @@ export function ReceiptHistory() {
       setLoadingMore(false);
     }
   };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchReceipts(1, true);
+  }, []);
 
   const handleDelete = async (receiptId: string) => {
     if (

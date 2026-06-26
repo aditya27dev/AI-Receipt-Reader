@@ -6,8 +6,8 @@
 import { openai, createOpenAI } from '@ai-sdk/openai';
 import { anthropic } from '@ai-sdk/anthropic';
 
-const OPENAI_VISION_MODEL = 'gpt-4o' as const;
-const ANTHROPIC_VISION_MODEL = 'claude-3-5-sonnet-20241022' as const;
+const OPENAI_VISION_MODEL = 'gpt-5.4-mini' as const;
+const ANTHROPIC_VISION_MODEL = 'claude-sonnet-4-6' as const;
 
 export type ModelProvider = 'openai' | 'anthropic';
 

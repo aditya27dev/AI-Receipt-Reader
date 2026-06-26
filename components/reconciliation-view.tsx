@@ -81,8 +81,9 @@ export function ReconciliationView() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (expanded && !data) fetchData();
-  }, [expanded]);
+  }, [expanded, data]);
 
   const filtered =
     data?.matches.filter((m) => filter === "all" || m.status === filter) ?? [];

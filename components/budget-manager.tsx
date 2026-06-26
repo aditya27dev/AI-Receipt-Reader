@@ -51,12 +51,7 @@ export function BudgetManager({ isDemo = false }: { isDemo?: boolean }) {
   const [limitAmount, setLimitAmount] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
   const fetchData = async () => {
-    setLoading(true);
     try {
       const [budgetsRes, txnRes] = await Promise.all([
         fetch("/api/budgets"),
@@ -72,6 +67,11 @@ export function BudgetManager({ isDemo = false }: { isDemo?: boolean }) {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchData();
+  }, []);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();

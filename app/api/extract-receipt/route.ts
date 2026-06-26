@@ -1,6 +1,6 @@
 import { streamObject } from 'ai';
 import { receiptSchema } from '@/lib/schemas';
-import { saveReceipt, generateImageHash, findReceiptByImageHash } from '@/lib/db';
+import { saveReceipt } from '@/lib/db';
 import { getVisionModel } from '@/lib/ai';
 import { rateLimit } from '@/lib/ratelimit';
 import { getSessionUserId, getSessionUser, isDemoUser } from '@/lib/session';

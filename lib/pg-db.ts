@@ -6,7 +6,7 @@
  * anonymous / single-user use.
  */
 
-import { desc, eq, and, isNull, ilike, or } from 'drizzle-orm';
+import { desc, eq, and, isNull, ilike } from 'drizzle-orm';
 import { getDb } from './pg';
 import * as schema from './pg-schema';
 import type { Receipt, ReceiptItem } from './schemas';

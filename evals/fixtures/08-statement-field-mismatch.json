@@ -1,0 +1,65 @@
+{
+  "id": "08-statement-field-mismatch",
+  "schema": "bankStatement",
+  "description": "HSBC account — AI got wrong end date and missed account number",
+  "rawOutput": {
+    "transactions": [
+      {
+        "date": "2026-06-02",
+        "description": "SAINSBURY'S SUPERSTORE",
+        "amount": 43.17,
+        "category": "groceries",
+        "currency": "GBP"
+      },
+      {
+        "date": "2026-06-10",
+        "description": "TFL TRAVEL",
+        "amount": 34.6,
+        "category": "transportation",
+        "currency": "GBP"
+      },
+      {
+        "date": "2026-06-18",
+        "description": "SPOTIFY AB",
+        "amount": 11.99,
+        "category": "entertainment",
+        "currency": "GBP"
+      }
+    ],
+    "statementPeriod": {
+      "startDate": "2026-06-01",
+      "endDate": "2026-06-25"
+    },
+    "accountNumber": ""
+  },
+  "expected": {
+    "transactions": [
+      {
+        "date": "2026-06-02",
+        "description": "SAINSBURY'S SUPERSTORE",
+        "amount": 43.17,
+        "category": "groceries",
+        "currency": "GBP"
+      },
+      {
+        "date": "2026-06-10",
+        "description": "TFL TRAVEL",
+        "amount": 34.6,
+        "category": "transportation",
+        "currency": "GBP"
+      },
+      {
+        "date": "2026-06-18",
+        "description": "SPOTIFY AB",
+        "amount": 11.99,
+        "category": "entertainment",
+        "currency": "GBP"
+      }
+    ],
+    "statementPeriod": {
+      "startDate": "2026-06-01",
+      "endDate": "2026-06-30"
+    },
+    "accountNumber": "7712"
+  }
+}

@@ -1,0 +1,73 @@
+{
+  "id": "02-restaurant-nyc",
+  "schema": "receipt",
+  "description": "NYC restaurant — AI over-estimated tax and total (field mismatch)",
+  "rawOutput": {
+    "merchantName": "The Spotted Pig",
+    "merchantAddress": "314 W 11th St, New York, NY 10014",
+    "date": "2026-05-20",
+    "time": "19:45",
+    "items": [
+      {
+        "name": "Chargrilled Burger",
+        "quantity": 1,
+        "unitPrice": 18.0,
+        "totalPrice": 18.0,
+        "category": "dining"
+      },
+      {
+        "name": "Roquefort Salad",
+        "quantity": 1,
+        "unitPrice": 14.0,
+        "totalPrice": 14.0,
+        "category": "dining"
+      },
+      {
+        "name": "House White Wine",
+        "quantity": 1,
+        "unitPrice": 9.0,
+        "totalPrice": 9.0,
+        "category": "dining"
+      }
+    ],
+    "subtotal": 41.0,
+    "tax": 4.2,
+    "total": 45.2,
+    "paymentMethod": "credit",
+    "currency": "USD"
+  },
+  "expected": {
+    "merchantName": "The Spotted Pig",
+    "merchantAddress": "314 W 11th St, New York, NY 10014",
+    "date": "2026-05-20",
+    "time": "19:45",
+    "items": [
+      {
+        "name": "Chargrilled Burger",
+        "quantity": 1,
+        "unitPrice": 18.0,
+        "totalPrice": 18.0,
+        "category": "dining"
+      },
+      {
+        "name": "Roquefort Salad",
+        "quantity": 1,
+        "unitPrice": 14.0,
+        "totalPrice": 14.0,
+        "category": "dining"
+      },
+      {
+        "name": "House White Wine",
+        "quantity": 1,
+        "unitPrice": 9.0,
+        "totalPrice": 9.0,
+        "category": "dining"
+      }
+    ],
+    "subtotal": 41.0,
+    "tax": 3.65,
+    "total": 44.65,
+    "paymentMethod": "credit",
+    "currency": "USD"
+  }
+}

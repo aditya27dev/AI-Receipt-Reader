@@ -7,14 +7,7 @@ import { receiptSchema } from "@/lib/schemas";
 import { useApiKey } from "@/lib/api-key-context";
 
 const VERCEL_MODE = process.env.NEXT_PUBLIC_VERCEL_MODE === "true";
-import {
-  Upload,
-  Loader2,
-  AlertCircle,
-  X,
-  CheckCircle2,
-  Lock,
-} from "lucide-react";
+import { Upload, Loader2, AlertCircle, X, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
