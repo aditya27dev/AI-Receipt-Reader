@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { reconcile, type ReconciliationMatch } from '../reconciliation';
+import { reconcile } from '../reconciliation';
 import type { StoredReceipt } from '../db';
 import type { StoredTransaction } from '../db';
 
