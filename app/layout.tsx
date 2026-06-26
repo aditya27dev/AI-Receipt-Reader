@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { CurrencyProvider } from "@/lib/currency-context";
 import { ApiKeyProvider } from "@/lib/api-key-context";
 import { GoogleTagManager } from "@next/third-parties/google";
+import Script from "next/script";
 import { CookieBanner } from "@/components/cookie-banner";
 import "./globals.css";
 
@@ -36,6 +37,20 @@ export default function RootLayout({
     >
       <GoogleTagManager gtmId={process.env.NEXT_PUBLIC_GTM_ID!} />
       <body className="antialiased" suppressHydrationWarning>
+        {/*
+          Consent default runs before GTM so GA knows the storage state immediately.
+          On returning visits we read localStorage here — not in React — so the
+          correct value is in the dataLayer before any GTM tag fires.
+        */}
+        <Script id="ga-consent-default" strategy="beforeInteractive">{`
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          var stored = '';
+          try { stored = localStorage.getItem('cookie_consent') || ''; } catch(e) {}
+          gtag('consent', 'default', {
+            analytics_storage: stored === 'granted' ? 'granted' : 'denied'
+          });
+        `}</Script>
         <CurrencyProvider>
           <ApiKeyProvider>
             <TooltipProvider>{children}</TooltipProvider>
