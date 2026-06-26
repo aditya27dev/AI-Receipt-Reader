@@ -7,22 +7,14 @@ const STORAGE_KEY = "cookie_consent";
 
 type ConsentValue = "granted" | "denied";
 
-// gtag must push `arguments` (not a plain array) so GTM's consent mode recognises the command
-function gtag(
-  command: string,
-  action: string,
-  params: Record<string, string>,
-): void {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (window as any).dataLayer = (window as any).dataLayer || [];
-  // eslint-disable-next-line prefer-rest-params, @typescript-eslint/no-explicit-any
-  (window as any).dataLayer.push(arguments);
+declare global {
+  interface Window {
+    gtag?: (...args: unknown[]) => void;
+  }
 }
 
 function updateConsent(value: ConsentValue) {
-  gtag("consent", "update", {
-    analytics_storage: value,
-  });
+  window.gtag?.("consent", "update", { analytics_storage: value });
 }
 
 export function CookieBanner() {
@@ -30,8 +22,10 @@ export function CookieBanner() {
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) setVisible(true);
-    else updateConsent(stored as ConsentValue);
+    if (!stored) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setVisible(true);
+    } else updateConsent(stored as ConsentValue);
   }, []);
 
   const handleAccept = () => {

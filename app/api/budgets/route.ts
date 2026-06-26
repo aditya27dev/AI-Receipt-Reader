@@ -3,7 +3,8 @@ import { getSessionUserId, getSessionUser, isDemoUser } from '@/lib/session';
 import { Result } from 'oxide.ts';
 import { NextRequest, NextResponse } from 'next/server';
 
-const DEMO_READONLY = NextResponse.json({ error: 'Demo account is read-only' }, { status: 403 });
+const DEMO_READONLY = () =>
+    NextResponse.json({ error: 'Demo account is read-only' }, { status: 403 });
 
 export const runtime = 'nodejs';
 
@@ -16,7 +17,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
     const postUser = await getSessionUser(req);
-    if (postUser && isDemoUser(postUser.email)) return DEMO_READONLY;
+    if (postUser && isDemoUser(postUser.email)) return DEMO_READONLY();
 
     let body: { category?: string; limitAmount?: number };
     try {
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
     const deleteUser = await getSessionUser(req);
-    if (deleteUser && isDemoUser(deleteUser.email)) return DEMO_READONLY;
+    if (deleteUser && isDemoUser(deleteUser.email)) return DEMO_READONLY();
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');

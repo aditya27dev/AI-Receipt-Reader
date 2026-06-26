@@ -5,7 +5,8 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 
-const DEMO_READONLY = NextResponse.json({ error: 'Demo account is read-only' }, { status: 403 });
+const DEMO_READONLY = () =>
+  NextResponse.json({ error: 'Demo account is read-only' }, { status: 403 });
 
 export async function DELETE(
   request: NextRequest,
@@ -18,7 +19,7 @@ export async function DELETE(
   }
 
   const user = await getSessionUser(request);
-  if (user && isDemoUser(user.email)) return DEMO_READONLY;
+  if (user && isDemoUser(user.email)) return DEMO_READONLY();
   const userId = user?.id ?? null;
   const result = await Result.safe(deleteReceipt(id, userId));
   if (result.isErr()) return NextResponse.json({ error: 'Failed to delete receipt' }, { status: 500 });
@@ -35,7 +36,7 @@ export async function PUT(
   if (!id) return NextResponse.json({ error: 'Receipt ID is required' }, { status: 400 });
 
   const user = await getSessionUser(request);
-  if (user && isDemoUser(user.email)) return DEMO_READONLY;
+  if (user && isDemoUser(user.email)) return DEMO_READONLY();
 
   const bodyResult = await Result.safe(request.json() as Promise<Record<string, unknown>>);
   if (bodyResult.isErr()) return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
