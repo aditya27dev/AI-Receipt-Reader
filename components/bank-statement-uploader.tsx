@@ -6,7 +6,14 @@ import { bankStatementSchema } from "@/lib/transaction-schemas";
 import { useApiKey } from "@/lib/api-key-context";
 
 const VERCEL_MODE = process.env.NEXT_PUBLIC_VERCEL_MODE === "true";
-import { Loader2, AlertCircle, FileText, CheckCircle, X } from "lucide-react";
+import {
+  Loader2,
+  AlertCircle,
+  FileText,
+  CheckCircle,
+  X,
+  Lock,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   Select,
@@ -18,10 +25,12 @@ import {
 
 interface BankStatementUploaderProps {
   onStatementProcessed: () => void;
+  isDemo?: boolean;
 }
 
 export function BankStatementUploader({
   onStatementProcessed,
+  isDemo = false,
 }: BankStatementUploaderProps) {
   const { apiFetch } = useApiKey();
   const [error, setError] = useState<string | null>(null);
@@ -110,6 +119,20 @@ export function BankStatementUploader({
     }
     await handleFile(file);
   };
+
+  if (isDemo) {
+    return (
+      <div className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-white/10 rounded-xl bg-white/5 gap-3">
+        <Lock className="w-9 h-9 text-zinc-600" />
+        <p className="text-sm font-semibold text-zinc-300">
+          Statement uploads disabled in demo mode
+        </p>
+        <p className="text-xs text-zinc-500 text-center px-6">
+          Sign up for a free account to process your own bank statements
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full space-y-4">

@@ -7,7 +7,7 @@ import { receiptSchema } from "@/lib/schemas";
 import { useApiKey } from "@/lib/api-key-context";
 
 const VERCEL_MODE = process.env.NEXT_PUBLIC_VERCEL_MODE === "true";
-import { Upload, Loader2, AlertCircle, X } from "lucide-react";
+import { Upload, Loader2, AlertCircle, X, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,7 @@ import {
 
 interface ReceiptUploaderProps {
   onReceiptExtracted: (receipt: Receipt) => void;
+  isDemo?: boolean;
 }
 
 interface QueueItem {
@@ -37,7 +38,10 @@ async function sha256Hex(buffer: ArrayBuffer): Promise<string> {
     .join("");
 }
 
-export function ReceiptUploader({ onReceiptExtracted }: ReceiptUploaderProps) {
+export function ReceiptUploader({
+  onReceiptExtracted,
+  isDemo = false,
+}: ReceiptUploaderProps) {
   const { apiFetch } = useApiKey();
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -220,6 +224,20 @@ export function ReceiptUploader({ onReceiptExtracted }: ReceiptUploaderProps) {
       submit({ ...pendingPayload, model: selectedModel });
     }
   };
+
+  if (isDemo) {
+    return (
+      <div className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed border-white/10 rounded-xl bg-white/5 gap-3">
+        <Lock className="w-10 h-10 text-zinc-600" />
+        <p className="text-sm font-semibold text-zinc-300">
+          Uploads disabled in demo mode
+        </p>
+        <p className="text-xs text-zinc-500 text-center px-6">
+          Sign up for a free account to extract receipts with AI
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full space-y-4">
