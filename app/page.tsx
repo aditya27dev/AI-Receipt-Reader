@@ -109,6 +109,7 @@ export default function Home() {
   const [refreshTransactions, setRefreshTransactions] = useState(0);
   const [searchOpen, setSearchOpen] = useState(false);
   const { data: session } = authClient.useSession();
+  const isDemo = session?.user?.email === "demo@example.com";
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -181,6 +182,22 @@ export default function Home() {
 
         <ApiKeyBanner />
 
+        {isDemo && (
+          <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2.5">
+            <p className="text-center text-sm text-amber-300/90 max-w-7xl mx-auto">
+              <span className="font-medium">Demo account</span> — read-only,
+              pre-loaded with sample data.{" "}
+              <button
+                onClick={() => authClient.signOut()}
+                className="underline underline-offset-2 hover:text-amber-200 transition-colors"
+              >
+                Sign out
+              </button>{" "}
+              to create your own account and scan real receipts.
+            </p>
+          </div>
+        )}
+
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           {/* Floating pill nav */}
           <nav className="flex gap-1 p-1 rounded-2xl glass border border-white/10 w-fit mx-auto mb-8">
@@ -234,6 +251,7 @@ export default function Home() {
                       </h2>
                       <ReceiptUploader
                         onReceiptExtracted={handleReceiptExtracted}
+                        isDemo={isDemo}
                       />
                     </div>
                     {latestReceipt ? (
@@ -258,6 +276,7 @@ export default function Home() {
                   <div className="space-y-8">
                     <BankStatementUploader
                       onStatementProcessed={handleStatementProcessed}
+                      isDemo={isDemo}
                     />
                     <div>
                       <h2 className="text-2xl font-bold text-white mb-4">
@@ -279,7 +298,7 @@ export default function Home() {
                     <h2 className="text-2xl font-bold text-white mb-6">
                       Monthly Budgets
                     </h2>
-                    <BudgetManager />
+                    <BudgetManager isDemo={isDemo} />
                   </div>
                 )}
               </ErrorBoundary>

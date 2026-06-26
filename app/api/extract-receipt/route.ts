@@ -3,7 +3,7 @@ import { receiptSchema } from '@/lib/schemas';
 import { saveReceipt, generateImageHash, findReceiptByImageHash } from '@/lib/db';
 import { getVisionModel } from '@/lib/ai';
 import { rateLimit } from '@/lib/ratelimit';
-import { getSessionUserId } from '@/lib/session';
+import { getSessionUserId, getSessionUser, isDemoUser } from '@/lib/session';
 import { NextRequest } from 'next/server';
 
 export const runtime = 'nodejs';
@@ -18,6 +18,14 @@ export async function POST(req: NextRequest) {
   if (!rl.success) {
     return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
       status: 429,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const reqUser = await getSessionUser(req);
+  if (reqUser && isDemoUser(reqUser.email)) {
+    return new Response(JSON.stringify({ error: 'Demo account is read-only. Sign up to extract your own receipts.' }), {
+      status: 403,
       headers: { 'Content-Type': 'application/json' },
     });
   }

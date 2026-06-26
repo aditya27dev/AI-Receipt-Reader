@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertCircle, Loader2, PlusCircle, Trash2 } from "lucide-react";
+import { AlertCircle, Loader2, Lock, PlusCircle, Trash2 } from "lucide-react";
 import { useCurrency } from "@/lib/currency-context";
 
 interface Budget {
@@ -42,7 +42,7 @@ const categoryColors: Record<string, string> = {
   other: "bg-zinc-500",
 };
 
-export function BudgetManager() {
+export function BudgetManager({ isDemo = false }: { isDemo?: boolean }) {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [spending, setSpending] = useState<SpendingEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -133,50 +133,65 @@ export function BudgetManager() {
         <h3 className="text-lg font-semibold text-zinc-100 mb-4">
           Set Monthly Budget
         </h3>
-        <form onSubmit={handleSave} className="flex flex-wrap gap-3 items-end">
-          <div className="flex-1 min-w-[160px]">
-            <label className="block text-sm font-medium text-zinc-400 mb-1">
-              Category
-            </label>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-zinc-200"
+        {isDemo ? (
+          <div className="flex items-center gap-3 py-3 text-zinc-500">
+            <Lock className="w-4 h-4 shrink-0" />
+            <p className="text-sm">
+              Budget editing is disabled in demo mode. Sign up to manage your
+              own budgets.
+            </p>
+          </div>
+        ) : (
+          <>
+            <form
+              onSubmit={handleSave}
+              className="flex flex-wrap gap-3 items-end"
             >
-              {SPENDING_CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {c.charAt(0).toUpperCase() + c.slice(1)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex-1 min-w-[140px]">
-            <label className="block text-sm font-medium text-zinc-400 mb-1">
-              Limit (monthly)
-            </label>
-            <input
-              type="number"
-              min="0.01"
-              step="0.01"
-              value={limitAmount}
-              onChange={(e) => setLimitAmount(e.target.value)}
-              placeholder="e.g. 200"
-              className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
-          >
-            <PlusCircle className="w-4 h-4" />
-            {saving ? "Saving…" : "Save Budget"}
-          </button>
-        </form>
-        {error && (
-          <div className="mt-3 flex items-center gap-2 text-red-400 text-sm">
-            <AlertCircle className="w-4 h-4" /> {error}
-          </div>
+              <div className="flex-1 min-w-[160px]">
+                <label className="block text-sm font-medium text-zinc-400 mb-1">
+                  Category
+                </label>
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-zinc-200"
+                >
+                  {SPENDING_CATEGORIES.map((c) => (
+                    <option key={c} value={c}>
+                      {c.charAt(0).toUpperCase() + c.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex-1 min-w-[140px]">
+                <label className="block text-sm font-medium text-zinc-400 mb-1">
+                  Limit (monthly)
+                </label>
+                <input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={limitAmount}
+                  onChange={(e) => setLimitAmount(e.target.value)}
+                  placeholder="e.g. 200"
+                  className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={saving}
+                className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+              >
+                <PlusCircle className="w-4 h-4" />
+                {saving ? "Saving…" : "Save Budget"}
+              </button>
+            </form>
+            {error && (
+              <div className="mt-3 flex items-center gap-2 text-red-400 text-sm">
+                <AlertCircle className="w-4 h-4" /> {error}
+              </div>
+            )}
+          </>
         )}
       </div>
 
