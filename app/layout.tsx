@@ -4,6 +4,7 @@ import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CurrencyProvider } from "@/lib/currency-context";
 import { ApiKeyProvider } from "@/lib/api-key-context";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import "./globals.css";
 
 const jakartaSans = Plus_Jakarta_Sans({
@@ -38,6 +39,9 @@ export default function RootLayout({
             <TooltipProvider>{children}</TooltipProvider>
           </ApiKeyProvider>
         </CurrencyProvider>
+        {process.env.NEXT_PUBLIC_GA_ID && (
+          <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID} />
+        )}
         <Toaster richColors position="top-right" />
       </body>
     </html>

@@ -24,6 +24,7 @@
     "@ai-sdk/openai": "^3.0.26",
     "@ai-sdk/react": "^3.0.180",
     "@base-ui/react": "^1.4.1",
+    "@next/third-parties": "^16.2.9",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.0",
     "ai": "^6.0.79",
