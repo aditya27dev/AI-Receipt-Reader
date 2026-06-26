@@ -4,7 +4,7 @@ import { bankStatementSchema } from '@/lib/transaction-schemas';
 import { saveTransactions } from '@/lib/db';
 import { getVisionModel } from '@/lib/ai';
 import { rateLimit } from '@/lib/ratelimit';
-import { getSessionUserId } from '@/lib/session';
+import { getSessionUserId, getSessionUser, isDemoUser } from '@/lib/session';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -17,6 +17,14 @@ export async function POST(request: NextRequest) {
   if (!rl.success) {
     return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
       status: 429,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const reqUser = await getSessionUser(request);
+  if (reqUser && isDemoUser(reqUser.email)) {
+    return new Response(JSON.stringify({ error: 'Demo account is read-only. Sign up to process your own statements.' }), {
+      status: 403,
       headers: { 'Content-Type': 'application/json' },
     });
   }
