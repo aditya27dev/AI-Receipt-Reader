@@ -1,0 +1,73 @@
+{
+  "id": "01-grocery-tesco",
+  "schema": "receipt",
+  "description": "UK grocery store — clean extraction, all fields match",
+  "rawOutput": {
+    "merchantName": "Tesco Express",
+    "merchantAddress": "42 High Street, London, EC1A 1BB",
+    "date": "2026-05-14",
+    "time": "09:32",
+    "items": [
+      {
+        "name": "Semi-Skimmed Milk 2L",
+        "quantity": 2,
+        "unitPrice": 0.89,
+        "totalPrice": 1.78,
+        "category": "groceries"
+      },
+      {
+        "name": "Sourdough Bread",
+        "quantity": 1,
+        "unitPrice": 1.45,
+        "totalPrice": 1.45,
+        "category": "groceries"
+      },
+      {
+        "name": "Cheddar Cheese 400g",
+        "quantity": 1,
+        "unitPrice": 2.75,
+        "totalPrice": 2.75,
+        "category": "groceries"
+      }
+    ],
+    "subtotal": 5.98,
+    "tax": 0.0,
+    "total": 5.98,
+    "paymentMethod": "debit",
+    "currency": "GBP"
+  },
+  "expected": {
+    "merchantName": "Tesco Express",
+    "merchantAddress": "42 High Street, London, EC1A 1BB",
+    "date": "2026-05-14",
+    "time": "09:32",
+    "items": [
+      {
+        "name": "Semi-Skimmed Milk 2L",
+        "quantity": 2,
+        "unitPrice": 0.89,
+        "totalPrice": 1.78,
+        "category": "groceries"
+      },
+      {
+        "name": "Sourdough Bread",
+        "quantity": 1,
+        "unitPrice": 1.45,
+        "totalPrice": 1.45,
+        "category": "groceries"
+      },
+      {
+        "name": "Cheddar Cheese 400g",
+        "quantity": 1,
+        "unitPrice": 2.75,
+        "totalPrice": 2.75,
+        "category": "groceries"
+      }
+    ],
+    "subtotal": 5.98,
+    "tax": 0.0,
+    "total": 5.98,
+    "paymentMethod": "debit",
+    "currency": "GBP"
+  }
+}

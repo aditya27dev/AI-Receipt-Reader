@@ -8,7 +8,6 @@ import { useApiKey } from "@/lib/api-key-context";
 const VERCEL_MODE = process.env.NEXT_PUBLIC_VERCEL_MODE === "true";
 import { Loader2, AlertCircle, FileText, CheckCircle, X } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,

@@ -1,0 +1,65 @@
+{
+  "id": "06-statement-barclays",
+  "schema": "bankStatement",
+  "description": "UK current account — clean extraction, all fields match",
+  "rawOutput": {
+    "transactions": [
+      {
+        "date": "2026-05-01",
+        "description": "TESCO STORES 4256",
+        "amount": 5.98,
+        "category": "groceries",
+        "currency": "GBP"
+      },
+      {
+        "date": "2026-05-03",
+        "description": "AMAZON PRIME",
+        "amount": 8.99,
+        "category": "shopping",
+        "currency": "GBP"
+      },
+      {
+        "date": "2026-05-07",
+        "description": "NETFLIX.COM",
+        "amount": 17.99,
+        "category": "entertainment",
+        "currency": "GBP"
+      }
+    ],
+    "statementPeriod": {
+      "startDate": "2026-05-01",
+      "endDate": "2026-05-31"
+    },
+    "accountNumber": "4821"
+  },
+  "expected": {
+    "transactions": [
+      {
+        "date": "2026-05-01",
+        "description": "TESCO STORES 4256",
+        "amount": 5.98,
+        "category": "groceries",
+        "currency": "GBP"
+      },
+      {
+        "date": "2026-05-03",
+        "description": "AMAZON PRIME",
+        "amount": 8.99,
+        "category": "shopping",
+        "currency": "GBP"
+      },
+      {
+        "date": "2026-05-07",
+        "description": "NETFLIX.COM",
+        "amount": 17.99,
+        "category": "entertainment",
+        "currency": "GBP"
+      }
+    ],
+    "statementPeriod": {
+      "startDate": "2026-05-01",
+      "endDate": "2026-05-31"
+    },
+    "accountNumber": "4821"
+  }
+}

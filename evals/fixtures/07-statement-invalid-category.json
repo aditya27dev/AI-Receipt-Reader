@@ -1,0 +1,51 @@
+{
+  "id": "07-statement-invalid-category",
+  "schema": "bankStatement",
+  "description": "UK mortgage account — AI used 'mortgage' as category (not in schema enum)",
+  "rawOutput": {
+    "transactions": [
+      {
+        "date": "2026-05-01",
+        "description": "NATIONWIDE MORTGAGE",
+        "amount": 1250.0,
+        "category": "mortgage",
+        "currency": "GBP"
+      },
+      {
+        "date": "2026-05-15",
+        "description": "BRITISH GAS",
+        "amount": 84.5,
+        "category": "utilities",
+        "currency": "GBP"
+      }
+    ],
+    "statementPeriod": {
+      "startDate": "2026-05-01",
+      "endDate": "2026-05-31"
+    },
+    "accountNumber": "9934"
+  },
+  "expected": {
+    "transactions": [
+      {
+        "date": "2026-05-01",
+        "description": "NATIONWIDE MORTGAGE",
+        "amount": 1250.0,
+        "category": "bills",
+        "currency": "GBP"
+      },
+      {
+        "date": "2026-05-15",
+        "description": "BRITISH GAS",
+        "amount": 84.5,
+        "category": "utilities",
+        "currency": "GBP"
+      }
+    ],
+    "statementPeriod": {
+      "startDate": "2026-05-01",
+      "endDate": "2026-05-31"
+    },
+    "accountNumber": "9934"
+  }
+}

@@ -53,10 +53,6 @@ export function SpendingSummary() {
   const [data, setData] = useState<SpendingSummaryData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
   const fetchData = async () => {
     try {
       const response = await fetch("/api/receipts");
@@ -77,6 +73,11 @@ export function SpendingSummary() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchData();
+  }, []);
 
   if (loading) {
     return (

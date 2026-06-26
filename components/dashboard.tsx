@@ -22,7 +22,6 @@ import {
   Calendar,
   BarChart2,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -318,8 +317,11 @@ export function Dashboard({ onNavigate, onScanClick }: DashboardProps) {
                     borderRadius: 8,
                     color: "#fff",
                   }}
-                  formatter={(v: number | undefined) =>
-                    [`$${(v ?? 0).toFixed(2)}`, "Spend"] as [string, string]
+                  formatter={(v) =>
+                    [`$${(Number(v) ?? 0).toFixed(2)}`, "Spend"] as [
+                      string,
+                      string,
+                    ]
                   }
                 />
                 <Area
