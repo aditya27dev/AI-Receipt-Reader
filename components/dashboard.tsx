@@ -236,15 +236,15 @@ export function Dashboard({ onNavigate, onScanClick }: DashboardProps) {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.08, duration: 0.4 }}
-                className={`rounded-2xl bg-gradient-to-br ${kpi.color} glass border border-white/10 p-5`}
+                className={`rounded-2xl bg-gradient-to-br ${kpi.color} glass border border-white/10 p-4 sm:p-5`}
               >
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
+                <div className="flex items-center justify-between mb-2 sm:mb-3">
+                  <span className="text-[10px] sm:text-xs font-medium text-zinc-400 uppercase tracking-wider">
                     {kpi.title}
                   </span>
                   <span className="text-zinc-400">{kpi.icon}</span>
                 </div>
-                <div className="text-3xl font-bold text-white">
+                <div className="text-2xl sm:text-3xl font-bold text-white">
                   {kpi.text ? (
                     <span className="capitalize">{kpi.text}</span>
                   ) : (

@@ -43,5 +43,5 @@ jobs:
         env:
           NEXT_PUBLIC_VERCEL_MODE: "true"
           BETTER_AUTH_SECRET: "ci-placeholder-secret-minimum-32-chars"
-          BETTER_AUTH_URL: "http://localhost:3000"
+          DEV_ORIGIN: "http://localhost:3000"
           DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci"

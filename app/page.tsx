@@ -146,13 +146,23 @@ export default function Home() {
                 Receipt AI
               </span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2">
               <CurrencySelector />
               {session && (
                 <span className="text-xs text-white/40 hidden sm:inline">
                   {session.user.email}
                 </span>
               )}
+              {/* Mobile search icon */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSearchOpen(true)}
+                className="text-zinc-400 hover:text-white sm:hidden"
+                title="Search"
+              >
+                <Search className="w-4 h-4" />
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -198,33 +208,39 @@ export default function Home() {
           </div>
         )}
 
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
           {/* Floating pill nav */}
-          <nav className="flex gap-1 p-1 rounded-2xl glass border border-white/10 w-fit mx-auto mb-8">
-            {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`relative flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors duration-200 ${
-                  activeTab === tab.id
-                    ? "text-white"
-                    : "text-zinc-400 hover:text-zinc-200"
-                }`}
-              >
-                {activeTab === tab.id && (
-                  <motion.div
-                    layoutId="pill"
-                    className="absolute inset-0 rounded-xl bg-gradient-to-r from-violet-600/60 to-indigo-600/60 shadow-lg"
-                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                  />
-                )}
-                <span className="relative z-10">{tab.icon}</span>
-                <span className="relative z-10 hidden sm:inline">
-                  {tab.label}
-                </span>
-              </button>
-            ))}
-          </nav>
+          <div className="overflow-x-auto pb-1 mb-6 sm:mb-8 -mx-4 px-4 sm:mx-0 sm:px-0">
+            <nav className="flex gap-1 p-1 rounded-2xl glass border border-white/10 w-max sm:w-fit mx-auto">
+              {TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`relative flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-sm font-medium transition-colors duration-200 ${
+                    activeTab === tab.id
+                      ? "text-white"
+                      : "text-zinc-400 hover:text-zinc-200"
+                  }`}
+                >
+                  {activeTab === tab.id && (
+                    <motion.div
+                      layoutId="pill"
+                      className="absolute inset-0 rounded-xl bg-gradient-to-r from-violet-600/60 to-indigo-600/60 shadow-lg"
+                      transition={{
+                        type: "spring",
+                        stiffness: 400,
+                        damping: 30,
+                      }}
+                    />
+                  )}
+                  <span className="relative z-10">{tab.icon}</span>
+                  <span className="relative z-10 hidden sm:inline">
+                    {tab.label}
+                  </span>
+                </button>
+              ))}
+            </nav>
+          </div>
 
           {/* Tab content */}
           <AnimatePresence mode="wait">
@@ -244,9 +260,9 @@ export default function Home() {
                 )}
 
                 {activeTab === "scan" && (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
                     <div>
-                      <h2 className="text-2xl font-bold text-white mb-4">
+                      <h2 className="text-xl sm:text-2xl font-bold text-white mb-4">
                         Upload Receipt
                       </h2>
                       <ReceiptUploader
@@ -256,7 +272,7 @@ export default function Home() {
                     </div>
                     {latestReceipt ? (
                       <div>
-                        <h2 className="text-2xl font-bold text-white mb-4">
+                        <h2 className="text-xl sm:text-2xl font-bold text-white mb-4">
                           Extracted Data
                         </h2>
                         <ReceiptDisplay receipt={latestReceipt} />
@@ -273,13 +289,13 @@ export default function Home() {
                 )}
 
                 {activeTab === "transactions" && (
-                  <div className="space-y-8">
+                  <div className="space-y-6 sm:space-y-8">
                     <BankStatementUploader
                       onStatementProcessed={handleStatementProcessed}
                       isDemo={isDemo}
                     />
                     <div>
-                      <h2 className="text-2xl font-bold text-white mb-4">
+                      <h2 className="text-xl sm:text-2xl font-bold text-white mb-4">
                         All Transactions
                       </h2>
                       <TransactionHistory key={refreshTransactions} />
@@ -295,7 +311,7 @@ export default function Home() {
 
                 {activeTab === "budget" && (
                   <div>
-                    <h2 className="text-2xl font-bold text-white mb-6">
+                    <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6">
                       Monthly Budgets
                     </h2>
                     <BudgetManager isDemo={isDemo} />

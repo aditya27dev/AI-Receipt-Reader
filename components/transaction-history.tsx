@@ -156,7 +156,7 @@ export function TransactionHistory() {
   return (
     <div className="space-y-6">
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-gradient-to-br from-blue-600/30 to-blue-700/30 glass border border-white/10 p-5 rounded-2xl text-white">
           <div className="flex items-start justify-between">
             <div>
@@ -206,24 +206,28 @@ export function TransactionHistory() {
       </div>
 
       {/* Category Filter + Export */}
-      <div className="flex items-center gap-2 flex-wrap justify-between">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm font-medium text-zinc-400">Filter:</span>
-          {categories.map((category) => (
-            <button
-              key={category}
-              onClick={() => setSelectedCategory(category)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors capitalize ${
-                selectedCategory === category
-                  ? "bg-violet-600 text-white"
-                  : "glass border border-white/10 text-zinc-400 hover:text-zinc-200"
-              }`}
-            >
-              {category}{" "}
-              {category !== "all" &&
-                `(${transactions.filter((t) => t.category === category).length})`}
-            </button>
-          ))}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-0.5 px-0.5">
+          <span className="text-sm font-medium text-zinc-400 shrink-0">
+            Filter:
+          </span>
+          <div className="flex items-center gap-1.5 flex-nowrap">
+            {categories.map((category) => (
+              <button
+                key={category}
+                onClick={() => setSelectedCategory(category)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors capitalize whitespace-nowrap ${
+                  selectedCategory === category
+                    ? "bg-violet-600 text-white"
+                    : "glass border border-white/10 text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                {category}{" "}
+                {category !== "all" &&
+                  `(${transactions.filter((t) => t.category === category).length})`}
+              </button>
+            ))}
+          </div>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md glass border border-white/20 text-zinc-300 hover:text-white transition-colors">
@@ -254,7 +258,8 @@ export function TransactionHistory() {
 
       {/* Transactions Table */}
       <div className="rounded-2xl glass border border-white/10 overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Desktop table */}
+        <div className="hidden sm:block overflow-x-auto">
           <table className="w-full">
             <thead className="bg-white/5 border-b border-white/10">
               <tr>
@@ -264,7 +269,7 @@ export function TransactionHistory() {
                   <th
                     key={field}
                     onClick={() => handleSort(field)}
-                    className={`px-6 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wider cursor-pointer select-none hover:text-zinc-200 transition-colors ${i === 3 ? "text-right" : "text-left"}`}
+                    className={`px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wider cursor-pointer select-none hover:text-zinc-200 transition-colors ${i === 3 ? "text-right" : "text-left"}`}
                   >
                     <span className="inline-flex items-center">
                       {field}
@@ -280,13 +285,13 @@ export function TransactionHistory() {
                   key={transaction.id}
                   className="hover:bg-white/5 transition-colors"
                 >
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-500">
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-zinc-500">
                     {format(new Date(transaction.date), "MMM dd, yyyy")}
                   </td>
-                  <td className="px-6 py-4 text-sm text-zinc-200">
+                  <td className="px-4 py-3 text-sm text-zinc-200">
                     {transaction.description}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 py-3 whitespace-nowrap">
                     <span
                       className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${categoryColors[transaction.category] ?? categoryColors.other}`}
                     >
@@ -294,7 +299,7 @@ export function TransactionHistory() {
                     </span>
                   </td>
                   <td
-                    className={`px-6 py-4 whitespace-nowrap text-sm text-right font-semibold ${
+                    className={`px-4 py-3 whitespace-nowrap text-sm text-right font-semibold ${
                       transaction.amount < 0
                         ? "text-emerald-400"
                         : "text-zinc-200"
@@ -308,6 +313,42 @@ export function TransactionHistory() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile card list */}
+        <div className="sm:hidden divide-y divide-white/5">
+          {filteredTransactions.map((transaction) => (
+            <div key={transaction.id} className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-zinc-200 truncate">
+                    {transaction.description}
+                  </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs text-zinc-500">
+                      {format(new Date(transaction.date), "MMM dd, yyyy")}
+                    </span>
+                    <span
+                      className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium capitalize ${categoryColors[transaction.category] ?? categoryColors.other}`}
+                    >
+                      {transaction.category}
+                    </span>
+                  </div>
+                </div>
+                <span
+                  className={`text-sm font-semibold shrink-0 ${
+                    transaction.amount < 0
+                      ? "text-emerald-400"
+                      : "text-zinc-200"
+                  }`}
+                >
+                  {transaction.amount < 0 ? "-" : ""}
+                  {currencySymbol}
+                  {Math.abs(transaction.amount).toFixed(2)}
+                </span>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 

@@ -18,9 +18,13 @@ function createAuth() {
     return betterAuth({
         secret: process.env.BETTER_AUTH_SECRET!,
         baseURL:
-            process.env.BETTER_AUTH_URL ??
-            process.env.NEXT_PUBLIC_APP_URL ??
+            process.env.DEV_ORIGIN ??
             'http://localhost:3000',
+
+        trustedOrigins: [
+            'http://localhost:3000',
+            ...(process.env.DEV_ORIGIN ? [process.env.DEV_ORIGIN] : []),
+        ],
 
         database: drizzleAdapter(getDb(), {
             provider: 'pg',

@@ -141,7 +141,7 @@ export function SearchModal({ open, onClose, onNavigate }: SearchModalProps) {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -20 }}
             transition={{ duration: 0.15, ease: "easeOut" }}
-            className="fixed left-1/2 top-[20%] z-50 w-full max-w-xl -translate-x-1/2"
+            className="fixed left-1/2 top-[10%] sm:top-[20%] z-50 w-[calc(100%-2rem)] max-w-xl -translate-x-1/2"
           >
             <Command className="rounded-2xl glass border border-white/20 shadow-2xl overflow-hidden bg-zinc-900/90 text-zinc-100">
               <div className="flex items-center border-b border-white/10 px-4">
