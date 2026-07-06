@@ -5,6 +5,8 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 
+const PG_ENABLED = !!process.env.DATABASE_URL;
+
 const DEMO_READONLY = () =>
   NextResponse.json({ error: 'Demo account is read-only' }, { status: 403 });
 
@@ -21,6 +23,9 @@ export async function DELETE(
   const user = await getSessionUser(request);
   if (user && isDemoUser(user.email)) return DEMO_READONLY();
   const userId = user?.id ?? null;
+  if (PG_ENABLED && !userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   const result = await Result.safe(deleteReceipt(id, userId));
   if (result.isErr()) return NextResponse.json({ error: 'Failed to delete receipt' }, { status: 500 });
   if (!result.unwrap()) return NextResponse.json({ error: 'Receipt not found' }, { status: 404 });
@@ -37,6 +42,10 @@ export async function PUT(
 
   const user = await getSessionUser(request);
   if (user && isDemoUser(user.email)) return DEMO_READONLY();
+  const userId = user?.id ?? null;
+  if (PG_ENABLED && !userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
   const bodyResult = await Result.safe(request.json() as Promise<Record<string, unknown>>);
   if (bodyResult.isErr()) return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });

@@ -6,6 +6,8 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 
+const PG_ENABLED = !!process.env.DATABASE_URL;
+
 export async function GET(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown';
   const rl = await rateLimit(ip, { limit: 100, windowMs: 60_000 });
@@ -14,6 +16,10 @@ export async function GET(req: NextRequest) {
   }
 
   const userId = await getSessionUserId(req);
+
+  if (PG_ENABLED && !userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
   const { searchParams } = new URL(req.url);
   const query = searchParams.get('q');

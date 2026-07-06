@@ -38,7 +38,7 @@ export interface PgBudget {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function nanoid() {
-    return Math.random().toString(36).slice(2, 11);
+    return crypto.randomUUID().replace(/-/g, '').slice(0, 9);
 }
 
 function rowToReceipt(row: typeof schema.receipts.$inferSelect): PgStoredReceipt {

@@ -6,10 +6,15 @@ import { NextRequest, NextResponse } from 'next/server';
 const DEMO_READONLY = () =>
     NextResponse.json({ error: 'Demo account is read-only' }, { status: 403 });
 
+const PG_ENABLED = !!process.env.DATABASE_URL;
+
 export const runtime = 'nodejs';
 
 export async function GET(req: NextRequest) {
     const userId = await getSessionUserId(req);
+    if (PG_ENABLED && !userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     const result = await Result.safe(getBudgets(userId));
     if (result.isErr()) return NextResponse.json({ error: 'Failed to fetch budgets' }, { status: 500 });
     return NextResponse.json({ budgets: result.unwrap() });
@@ -18,6 +23,10 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
     const postUser = await getSessionUser(req);
     if (postUser && isDemoUser(postUser.email)) return DEMO_READONLY();
+    const userId = postUser?.id ?? null;
+    if (PG_ENABLED && !userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     let body: { category?: string; limitAmount?: number };
     try {
@@ -35,7 +44,6 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'limitAmount must be a positive number' }, { status: 400 });
     }
 
-    const userId = await getSessionUserId(req);
     const result = await Result.safe(saveBudget(category.trim(), limitAmount, userId));
     if (result.isErr()) return NextResponse.json({ error: 'Failed to save budget' }, { status: 500 });
     return NextResponse.json({ budget: result.unwrap() }, { status: 201 });
@@ -44,6 +52,10 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
     const deleteUser = await getSessionUser(req);
     if (deleteUser && isDemoUser(deleteUser.email)) return DEMO_READONLY();
+    const userId = deleteUser?.id ?? null;
+    if (PG_ENABLED && !userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
@@ -52,7 +64,6 @@ export async function DELETE(req: NextRequest) {
         return NextResponse.json({ error: 'Missing id parameter' }, { status: 400 });
     }
 
-    const userId = await getSessionUserId(req);
     const result = await Result.safe(deleteBudget(id, userId));
     if (result.isErr()) return NextResponse.json({ error: 'Failed to delete budget' }, { status: 500 });
     return NextResponse.json({ success: result.unwrap() });
