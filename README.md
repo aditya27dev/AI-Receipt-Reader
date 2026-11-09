@@ -1,12 +1,12 @@
 # Multimodal Financial Ingestion & Reconciliation Platform
 
-A high-reliability full-stack financial platform engineered to ingest, extract, and reconcile accounting data from unstructured receipt images and PDF statements. Built with Next.js 16 (App Router), React 19, and TypeScript, featuring deterministic Zod contract boundaries, tenant-isolated relational persistence, vector similarity search, and automated transaction reconciliation.
+A full-stack financial platform that ingests, extracts, and reconciles accounting data from receipt images and PDF bank statements. Built with Next.js 16 (App Router), React 19, and TypeScript, featuring Zod-validated LLM output, user-scoped relational persistence, ChromaDB vector storage, and fuzzy receipt-to-transaction reconciliation.
 
 [![CI](https://github.com/aditya27dev/ai-receipt-reader/actions/workflows/ci.yml/badge.svg)](https://github.com/aditya27dev/ai-receipt-reader/actions)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?logo=typescript)](https://www.typescriptlang.org/)
-[![Next.js](https://img.shields.io/badge/Next.js-16.0-black?logo=next.js)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue?logo=typescript)](https://www.typescriptlang.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-16.2-black?logo=next.js)](https://nextjs.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Drizzle_ORM-336791?logo=postgresql)](https://orm.drizzle.team/)
-[![Coverage](https://img.shields.io/badge/Coverage-Vitest-yellow?logo=vitest)](https://vitest.dev/)
+[![Tests](https://img.shields.io/badge/Tests-Vitest-yellow?logo=vitest)](https://vitest.dev/)
 
 ---
 
@@ -14,82 +14,87 @@ A high-reliability full-stack financial platform engineered to ingest, extract, 
 
 ```
 [ Ingestion Layer ]
-  Receipt Image / PDF Statement Upload
-         │
-         ▼
-[ Content Hashing & Invalidation Barrier ]
-  SHA-256 Payload Hash Check ────────(Duplicate Found)──────► [ Instant Cache Return / Early Exit ]
-         │ (Unique Payload)
-         ▼
+  Receipt Image Upload                         PDF Statement Upload
+         │                                              │
+         ▼                                              ▼
+[ Client-side SHA-256 Hash ]                  [ Text Extraction (unpdf) ]
+  POST /api/extract-receipt/check                       │
+         ├──(Duplicate Found)──► [ Show existing receipt; user may skip or re-run ]
+         │ (New image)                                  │
+         ▼                                              ▼
 [ Extraction & Schema Boundary ]
-  Multimodal Vision Engine (OpenAI / Anthropic via Vercel AI SDK v6)
+  LLM structured output (OpenAI / Anthropic via Vercel AI SDK v6 streamObject)
+  Receipts: vision input · Statements: extracted PDF text
          │
          ▼
-  Type-Safe Contract Enforcement (Strict Zod Schema Validation)
+  Zod Schema Validation
          │
-         ├──(Validation Failure)──► [ Structured Error Response / Request Rejected ]
+         ├──(Validation Failure)──► [ Nothing persisted ]
          │
-         ▼ (Validated Payload)
+         ▼ (Validated Object)
 [ Persistence & Indexing Layer ]
   ┌──────────────────────────────┴──────────────────────────────┐
   ▼                                                             ▼
-[ Relational Engine: PostgreSQL / Drizzle ]   [ Semantic Vector Store: ChromaDB ]
-  • Multi-tenant transactional isolation         • OpenAI text embeddings (1536-dim)
-  • Transaction-to-receipt reconciliation engine • Cosine similarity search over merchants
-  • Real-time budget threshold calculation       • Natural language expense querying
+[ Primary: PostgreSQL / Drizzle ]              [ Secondary: ChromaDB (best-effort) ]
+  • Per-user row scoping (user_id FK)            • OpenAI text-embedding-3-small (1536-dim)
+  • Receipts, transactions, budgets, auth        • Vector search used only when
+                                                   PostgreSQL is not configured
 ```
+
+When `DATABASE_URL` is not set, the app runs in ChromaDB-only mode: no auth, and all data lives in ChromaDB.
 
 ---
 
 ## Core System Architecture & Engineering Tradeoffs
 
-### 1. Deterministic Extraction vs. LLM Non-Determinism
+### 1. Schema-Bound Extraction vs. LLM Non-Determinism
 
-- **The Problem:** Raw multimodal LLMs frequently hallucinate line items, transpose totals, and miscalculate regional tax structures when reading distorted, faded receipts.
-- **The Solution:** Model output is generated as structured objects bound to strict, nested Zod contracts covering merchant, line items, subtotal, tax, total, currency, and date. Payloads that fail schema validation are rejected with a structured error before anything reaches the database, so malformed extractions never contaminate the ledger.
+- **The Problem:** Multimodal LLMs can hallucinate line items, transpose totals, and misread tax on distorted or faded receipts.
+- **The Solution:** Model output is generated with `streamObject` against nested Zod schemas covering merchant, line items, subtotal, tax, total, currency, payment method, and date. The partial object streams to the client as it is generated; only an object that passes final schema validation is persisted. Zod enforces shape and types, not arithmetic, so totals are not cross-checked against line items.
 
-### 2. Idempotent Ingestion & Cost Optimisation
+### 2. Duplicate Detection & Cost Optimisation
 
-- Uploaded binaries are hashed using SHA-256 before invoking external model APIs.
-- Duplicate files return existing record identifiers immediately, preventing redundant API billing and eliminating ledger contamination.
+- The browser hashes each image with SHA-256 (Web Crypto) and calls `/api/extract-receipt/check` before invoking the model.
+- If the user already has a receipt with the same hash, the existing receipt is shown and the user can skip the model call or re-run extraction anyway. The check is advisory: `/api/extract-receipt` itself does not reject duplicates.
 
 ### 3. Decoupled Storage Architecture
 
-- **Relational Core:** PostgreSQL (via Drizzle ORM) manages ACID transactions, tenant isolation, foreign key constraints, and budget mutations.
-- **Vector Indexing:** ChromaDB isolates semantic search vectors, ensuring resource-intensive similarity searches never contend with transactional database locks.
+- **Relational Core:** PostgreSQL (via Drizzle ORM) is the source of truth for receipts, transactions, budgets, and Better Auth tables, with `user_id` foreign keys (`ON DELETE CASCADE`).
+- **Vector Indexing:** ChromaDB receives a best-effort secondary write of each receipt and transaction embedding. Failures are logged and do not affect the PostgreSQL write.
 
-### 4. Zero-Trust Security & Rate Limiting
+### 4. Security Headers & Rate Limiting
 
-- Hardened HTTP response headers on every route, including strict Content Security Policy (CSP), frame-ancestor blocking, and secure session cookies.
-- Sensitive ingestion endpoints and demo account surfaces are guarded by Upstash Redis sliding-window rate limiters, preventing denial-of-wallet vectors on external AI APIs.
+- Security headers on every route: Content Security Policy (with `frame-ancestors 'none'`; scripts allow `'unsafe-inline'` and Google Tag Manager), `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, and `Permissions-Policy`.
+- `/api/extract-receipt`, `/api/process-statement`, `/api/search`, and `/api/demo-login` are rate limited per IP. With Upstash configured this is an Upstash Redis sliding-window limiter; otherwise it falls back to an in-memory fixed-window limiter (single instance only).
+- The demo account is read-only: write endpoints return 403 for it.
 
 ---
 
 ## System Capabilities
 
-| Capability                           | Engineering Implementation                                                                             |
-| :----------------------------------- | :----------------------------------------------------------------------------------------------------- |
-| **Vision Receipt Extraction**        | Multimodal extraction (OpenAI GPT-5.4 mini / Anthropic Claude Sonnet 4.6) bound to strict schemas      |
-| **PDF Statement Parsing**            | High-throughput document parsing via unpdf with automated transactional categorization                 |
-| **Two-Way Reconciliation**           | Algorithmic matching between scanned receipt totals and posted bank statement transactions             |
-| **Deduplication Engine**             | Pre-execution SHA-256 image hashing to guarantee idempotency and prevent redundant model invocations   |
-| **Semantic Natural Language Search** | Context-scoped natural language retrieval across historic records using ChromaDB vector embeddings     |
-| **Budget Variance Telemetry**        | Real-time threshold monitoring with category delta calculations and Recharts visualisations            |
-| **Multi-Tenant Authentication**      | Secure session management with Better Auth, strict tenant scoping, and a read-only sandboxed demo mode |
-| **API Defense & Security**           | Upstash Redis sliding-window rate limiters, strict CSP headers, and fail-fast Zod startup validation   |
-| **BYOK Client Deployment**           | Client-side API key configuration mode for zero-cost public demonstrations                             |
-| **Consent-Gated Analytics**          | GDPR-compliant cookie consent barrier governing Google Tag Manager execution                           |
+| Capability                      | Implementation                                                                                                   |
+| :------------------------------ | :--------------------------------------------------------------------------------------------------------------- |
+| **Vision Receipt Extraction**   | Multimodal extraction (OpenAI GPT-5.4 mini / Anthropic Claude Sonnet 4.6) validated against Zod schemas          |
+| **PDF Statement Parsing**       | Text extracted with unpdf, then transactions and categories extracted by the LLM                                 |
+| **Receipt Reconciliation**      | Fuzzy matching of receipts to bank transactions, scored on amount, date proximity, and merchant name similarity  |
+| **Duplicate Detection**         | Client-side SHA-256 image hashing checked before the model is called                                             |
+| **Search**                      | With PostgreSQL: case-insensitive merchant name match. ChromaDB-only mode: vector similarity over embeddings     |
+| **Budget Tracking**             | Monthly per-category limits with spent-vs-limit progress; Recharts spending charts                               |
+| **Authentication**              | Better Auth email/password sessions, per-user data scoping, and a read-only seeded demo account                 |
+| **API Defense & Security**      | Per-IP rate limiting, CSP and security headers, Zod validation of core environment variables                     |
+| **BYOK Mode**                   | Users supply their own OpenAI key in the browser (`x-openai-key` header) for public demos; Anthropic and embeddings still use server keys |
+| **Consent Mode Analytics**      | Google Tag Manager with Consent Mode: `analytics_storage` defaults to denied until the user accepts the cookie banner |
 
 ---
 
 ## Technical Specifications
 
-- **Frontend:** Next.js 16 (App Router, Server Components, Route Handlers), React 19, Tailwind CSS 3, Recharts, Framer Motion, Lucide Icons
+- **Frontend:** Next.js 16 (App Router, Route Handlers), React 19, Tailwind CSS 3, Recharts, Framer Motion, Lucide Icons
 - **AI & Embeddings:** Vercel AI SDK (v6), Anthropic Claude Sonnet 4.6, OpenAI GPT-5.4 mini, OpenAI text-embedding-3-small
-- **Backend & API:** Node.js, Next.js API Routes, unpdf parser, Zod runtime validation
-- **Persistence & Storage:** PostgreSQL, Drizzle ORM, ChromaDB (Vector Store), Docker Compose
-- **Security & Auth:** Better Auth (Session-based, encrypted cookies), Upstash Redis (Sliding-window rate limiting)
-- **DevOps & Tooling:** TypeScript 5 (Strict), ESLint 9 (Flat Config), Vitest, GitHub Actions, pnpm
+- **Backend & API:** Node.js runtime, Next.js Route Handlers, unpdf, Zod 4
+- **Persistence & Storage:** PostgreSQL 16, Drizzle ORM, ChromaDB (vector store), Docker Compose
+- **Security & Auth:** Better Auth (session cookies), Upstash Redis (sliding-window rate limiting)
+- **DevOps & Tooling:** TypeScript 5 (strict), ESLint 9 (flat config), Vitest, GitHub Actions, pnpm
 
 ---
 
@@ -97,8 +102,8 @@ A high-reliability full-stack financial platform engineered to ingest, extract, 
 
 ### Prerequisites
 
-- Node.js >= 20.x
-- pnpm >= 9.x
+- Node.js >= 20.9 (CI uses Node 24)
+- pnpm 11 (matches CI)
 - Docker & Docker Compose
 
 ### 1. Repository Setup
@@ -111,93 +116,100 @@ pnpm install
 
 ### 2. Environment Configuration
 
-Copy the template and provide the required environment secrets:
+Copy the template (it contains only the two API keys) and add any other variables you need:
 
 ```bash
 cp .env.sample .env
 ```
 
-All environment variables are validated at boot time via `lib/env.ts`. Missing or invalid configurations fail fast on startup.
+`lib/env.ts` validates `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `CHROMA_URL`, `DATABASE_URL`, and `BETTER_AUTH_SECRET` with Zod when it is first imported on the server, and throws if they are missing or invalid. The other variables are read directly and are not validated.
 
-| Variable                   | Required          | Purpose                                                               |
-| :------------------------- | :---------------- | :-------------------------------------------------------------------- |
-| `OPENAI_API_KEY`           | Yes (unless BYOK) | Vision model extraction and text embeddings                           |
-| `ANTHROPIC_API_KEY`        | Yes (unless BYOK) | Alternative vision model extraction engine                            |
-| `DATABASE_URL`             | Optional          | PostgreSQL connection string for auth, budgets, and reconciliation    |
-| `BETTER_AUTH_SECRET`       | If DB is set      | Session signing secret (minimum 32 characters)                        |
-| `CHROMA_URL`               | Optional          | ChromaDB instance endpoint (defaults to `http://localhost:8000`)      |
-| `NEXT_PUBLIC_APP_URL`      | Optional          | Canonical production origin used for trusted session validation       |
-| `DEV_ORIGIN`               | Optional          | Additional development origin allowed for tunneling / local testing   |
-| `UPSTASH_REDIS_REST_URL`   | Optional          | Upstash Redis connection endpoint for API rate limiting               |
-| `UPSTASH_REDIS_REST_TOKEN` | Optional          | Upstash Redis authentication token for rate limiting                  |
-| `NEXT_PUBLIC_VERCEL_MODE`  | Optional          | Toggles client-side BYOK key mode for public sandbox deployments      |
-| `NEXT_PUBLIC_GTM_ID`       | Optional          | Google Tag Manager container ID, gated strictly behind cookie consent |
+| Variable                   | Required          | Purpose                                                                                       |
+| :------------------------- | :---------------- | :-------------------------------------------------------------------------------------------- |
+| `OPENAI_API_KEY`           | Yes (unless BYOK) | OpenAI vision extraction and text embeddings (embeddings need it even in BYOK mode)           |
+| `ANTHROPIC_API_KEY`        | Yes (unless BYOK) | Anthropic extraction engine (needed to use Anthropic even in BYOK mode)                       |
+| `DATABASE_URL`             | Optional          | PostgreSQL connection string; enables auth and PostgreSQL storage. Without it, ChromaDB-only  |
+| `BETTER_AUTH_SECRET`       | If DB is set      | Session signing secret (minimum 32 characters)                                                |
+| `CHROMA_URL`               | Optional          | ChromaDB endpoint (defaults to `http://localhost:8000`)                                       |
+| `NEXT_PUBLIC_APP_URL`      | Optional          | Production origin; used as the Better Auth base URL and a trusted origin                      |
+| `DEV_ORIGIN`               | Optional          | Extra dev origin (e.g. a tunnel) added to Next.js `allowedDevOrigins` and Better Auth trusted origins |
+| `UPSTASH_REDIS_REST_URL`   | Optional          | Upstash Redis REST URL; both Upstash variables are needed to enable Redis rate limiting       |
+| `UPSTASH_REDIS_REST_TOKEN` | Optional          | Upstash Redis REST token                                                                      |
+| `NEXT_PUBLIC_VERCEL_MODE`  | Optional          | Set to `true` to enable BYOK mode for public deployments                                      |
+| `NEXT_PUBLIC_GTM_ID`       | Optional          | Google Tag Manager container ID (runs under Consent Mode)                                     |
+
+For the Docker Compose database, use `DATABASE_URL=postgresql://postgres:password@localhost:5432/receipts`.
 
 ### 3. Service Bootstrapping
 
 ```bash
-# Launch isolated PostgreSQL and ChromaDB containers
-docker-compose up -d
+# Start PostgreSQL and ChromaDB containers (or: pnpm docker:up)
+docker compose up -d
 
-# Execute schema migrations against PostgreSQL
+# Push the Drizzle schema to PostgreSQL
 pnpm db:push
 
 # Start the development server
 pnpm dev
 ```
 
-Navigate to `http://localhost:3000` to inspect the application.
+Open `http://localhost:3000`.
 
 ---
 
 ## API Surface
 
+When `DATABASE_URL` is set, data endpoints require a signed-in session and are scoped to that user.
+
 ```
-POST   /api/extract-receipt        -> Ingest, validate, and extract receipt payload
-POST   /api/extract-receipt/check  -> Query idempotency barrier via binary SHA-256 hash
-POST   /api/process-statement      -> Parse statement PDF and extract batch transaction records
-GET    /api/receipts               -> Retrieve tenant receipts and aggregated spending analytics
-DELETE /api/receipts/[id]          -> Purge target receipt record and vector embeddings
-GET    /api/transactions           -> Fetch posted bank statement lines
-GET    /api/reconcile              -> Run reconciliation matrix across receipts and transactions
-GET    /api/budgets                -> Retrieve category spending limits and current variance
-POST   /api/budgets                -> Upsert category threshold limits
-GET    /api/export?type=&format=   -> Stream structured financial exports in CSV or JSON
-GET    /api/search?q={query}       -> Query vector database using cosine similarity lookup
-POST   /api/demo-login             -> Authenticate against the read-only seeded demo tenant
--      /api/auth/[...all]          -> Better Auth session lifecycle endpoints
+POST   /api/extract-receipt        -> Extract a receipt image (streamed) and save it
+POST   /api/extract-receipt/check  -> Look up the user's existing receipt by SHA-256 image hash
+POST   /api/process-statement      -> Extract transactions from a PDF statement (streamed) and save them
+GET    /api/receipts               -> List receipts with category summary and 30-day spending
+PUT    /api/receipts/[id]          -> Edit merchant, date, total, or payment method
+DELETE /api/receipts/[id]          -> Delete a receipt and its embedding
+GET    /api/transactions           -> List bank transactions with category summary
+GET    /api/reconcile              -> Match receipts to transactions (requires a session)
+GET    /api/budgets                -> List category budgets
+POST   /api/budgets                -> Create or replace a category budget
+DELETE /api/budgets?id=            -> Delete a budget
+GET    /api/export?type=&format=   -> Download receipts or transactions as CSV or JSON
+GET    /api/search?q={query}       -> Search receipts (see Search above)
+POST   /api/demo-login             -> Sign in to the read-only seeded demo account
+-      /api/auth/[...all]          -> Better Auth session endpoints
 ```
 
 ---
 
 ## Quality Assurance & Automated Testing
 
-The platform enforces contract validation, math accuracy, and security boundaries through Vitest:
+Vitest covers Zod schemas, reconciliation scoring, PostgreSQL query helpers (with the database mocked), and demo-account write restrictions:
 
 ```bash
-# Run unit and integration suites
+# Run unit tests (watch mode; use `pnpm test --run` for a single run)
 pnpm test
 
-# Generate statement and branch coverage reports
+# Run tests once with V8 coverage (text + lcov)
 pnpm test:coverage
 
-# Run offline regression evals against stored extraction fixtures
+# Validate stored extraction fixtures against the Zod schemas and run reconciliation cases (no model calls)
 pnpm eval
 ```
 
 ### Continuous Integration Pipeline
 
-Every push and pull request executes a multi-stage GitHub Actions pipeline:
+Every push to `main` or `develop`, and every pull request to `main`, runs a GitHub Actions job with these steps:
 
-1. **Static Analysis:** ESLint 9 validation and strict type safety checks via `tsc --noEmit`.
-2. **Contract Testing:** Vitest execution across parsers, Zod schemas, and reconciliation calculations.
-3. **Build Integrity:** Full production build via `pnpm build`.
+1. **Lint:** `pnpm lint` (ESLint 9).
+2. **Type-check:** `tsc --noEmit`.
+3. **Test:** Vitest single run.
+4. **Build:** `pnpm build` in BYOK mode with placeholder secrets.
 
 ---
 
 ## License
 
-Personal engineering portfolio project created by **Aditya Batra**. Provided for review and technical demonstration purposes.
+Personal engineering portfolio project by **Aditya Batra**, released under a Personal Use License. See [LICENSE](LICENSE) for terms.
 
 ---
 

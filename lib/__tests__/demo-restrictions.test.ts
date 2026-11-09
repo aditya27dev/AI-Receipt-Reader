@@ -26,7 +26,7 @@ vi.mock('@/lib/ratelimit', () => ({
 
 vi.mock('@/lib/db', () => ({
     deleteReceipt: vi.fn().mockResolvedValue(true),
-    updateReceiptMetadata: vi.fn().mockResolvedValue(true),
+    updateReceipt: vi.fn().mockResolvedValue(true),
     saveBudget: vi.fn().mockResolvedValue({ id: 'b1', category: 'groceries', limitAmount: 100, period: 'monthly', createdAt: new Date() }),
     deleteBudget: vi.fn().mockResolvedValue(true),
     getBudgets: vi.fn().mockResolvedValue([]),
@@ -167,6 +167,22 @@ describe('Regular user — writes are not blocked by the demo guard', () => {
     it('DELETE /api/receipts/[id] proceeds (not 403)', async () => {
         const res = await deleteReceipt(req('DELETE', '/api/receipts/receipt-123'), RECEIPT_PARAMS);
         expect(res.status).not.toBe(403);
+    });
+
+    it('PUT /api/receipts/[id] updates valid fields', async () => {
+        const res = await putReceipt(
+            req('PUT', '/api/receipts/receipt-123', { merchant_name: 'Tesco', total: 12.5 }),
+            RECEIPT_PARAMS,
+        );
+        expect(res.status).toBe(200);
+    });
+
+    it('PUT /api/receipts/[id] rejects unknown fields', async () => {
+        const res = await putReceipt(
+            req('PUT', '/api/receipts/receipt-123', { category: 'groceries' }),
+            RECEIPT_PARAMS,
+        );
+        expect(res.status).toBe(400);
     });
 
     it('POST /api/budgets proceeds (not 403)', async () => {

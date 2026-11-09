@@ -72,8 +72,6 @@ export function ReceiptHistory() {
     merchant_name: "",
     total: "",
     purchase_date: "",
-    category: "",
-    notes: "",
   });
   const [saving, setSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -158,8 +156,6 @@ export function ReceiptHistory() {
       merchant_name: r.merchantName,
       total: String(r.total),
       purchase_date: r.date,
-      category: (r as unknown as Record<string, string>).category ?? "",
-      notes: "",
     });
   };
 
@@ -173,8 +169,6 @@ export function ReceiptHistory() {
       if (editFields.total) body.total = parseFloat(editFields.total);
       if (editFields.purchase_date)
         body.purchase_date = editFields.purchase_date;
-      if (editFields.category) body.category = editFields.category;
-      if (editFields.notes) body.notes = editFields.notes;
 
       const res = await fetch(`/api/receipts/${editingReceipt.id}`, {
         method: "PUT",
@@ -192,10 +186,6 @@ export function ReceiptHistory() {
                   ? parseFloat(editFields.total)
                   : r.total,
                 date: editFields.purchase_date || r.date,
-                category:
-                  editFields.category ||
-                  (editingReceipt as unknown as Record<string, string>)
-                    .category,
               }
             : r,
         ),
@@ -582,29 +572,6 @@ export function ReceiptHistory() {
                   }))
                 }
                 className="bg-white/5 border-white/20 text-zinc-100"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-zinc-500 mb-1 block">
-                Category
-              </label>
-              <Input
-                value={editFields.category}
-                onChange={(e) =>
-                  setEditFields((f) => ({ ...f, category: e.target.value }))
-                }
-                placeholder="e.g. groceries"
-                className="bg-white/5 border-white/20 text-zinc-100 placeholder:text-zinc-600"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-zinc-500 mb-1 block">Notes</label>
-              <Input
-                value={editFields.notes}
-                onChange={(e) =>
-                  setEditFields((f) => ({ ...f, notes: e.target.value }))
-                }
-                className="bg-white/5 border-white/20 text-zinc-100 placeholder:text-zinc-600"
               />
             </div>
             <div className="flex gap-3 pt-2">
