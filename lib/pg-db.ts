@@ -127,14 +127,46 @@ export async function getReceiptsPg(
 
 export async function findReceiptByHashPg(
     imageHash: string,
+    userId: string | null,
 ): Promise<PgStoredReceipt | null> {
     const db = getDb();
+    const hashMatch = eq(schema.receipts.imageHash, imageHash);
+    const condition = userId
+        ? and(hashMatch, eq(schema.receipts.userId, userId))
+        : and(hashMatch, isNull(schema.receipts.userId));
     const rows = await db
         .select()
         .from(schema.receipts)
-        .where(eq(schema.receipts.imageHash, imageHash))
+        .where(condition)
         .limit(1);
 
+    return rows.length > 0 ? rowToReceipt(rows[0]) : null;
+}
+
+export interface ReceiptUpdate {
+    merchantName?: string;
+    date?: string;
+    total?: number;
+    paymentMethod?: Receipt['paymentMethod'];
+}
+
+export async function updateReceiptPg(
+    id: string,
+    updates: ReceiptUpdate,
+    userId: string | null,
+): Promise<PgStoredReceipt | null> {
+    const db = getDb();
+    const condition = userId
+        ? and(eq(schema.receipts.id, id), eq(schema.receipts.userId, userId))
+        : and(eq(schema.receipts.id, id), isNull(schema.receipts.userId));
+
+    const set: Partial<typeof schema.receipts.$inferInsert> = {};
+    if (updates.merchantName !== undefined) set.merchantName = updates.merchantName;
+    if (updates.date !== undefined) set.date = updates.date;
+    if (updates.total !== undefined) set.total = updates.total.toFixed(2);
+    if (updates.paymentMethod !== undefined) set.paymentMethod = updates.paymentMethod;
+
+    const rows = await db.update(schema.receipts).set(set).where(condition).returning();
     return rows.length > 0 ? rowToReceipt(rows[0]) : null;
 }
 

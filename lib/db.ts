@@ -20,6 +20,7 @@ import {
   saveReceiptPg,
   getReceiptsPg,
   findReceiptByHashPg,
+  updateReceiptPg,
   deleteReceiptPg,
   getSpendingSummaryPg,
   getSpendingOverTimePg,
@@ -32,6 +33,9 @@ import {
   deleteBudgetPg,
   searchReceiptsPg,
 } from './pg-db';
+import type { ReceiptUpdate } from './pg-db';
+
+export type { ReceiptUpdate };
 
 const PG_ENABLED = !!process.env.DATABASE_URL;
 
@@ -249,8 +253,11 @@ export function generateImageHash(buffer: Buffer): string {
   return createHash('sha256').update(new Uint8Array(buffer)).digest('hex');
 }
 
-export async function findReceiptByImageHash(imageHash: string): Promise<StoredReceipt | null> {
-  if (PG_ENABLED) return findReceiptByHashPg(imageHash);
+export async function findReceiptByImageHash(
+  imageHash: string,
+  userId?: string | null,
+): Promise<StoredReceipt | null> {
+  if (PG_ENABLED) return findReceiptByHashPg(imageHash, userId ?? null);
 
   const client = getChromaClient();
   try {
@@ -368,20 +375,47 @@ export async function deleteReceipt(id: string, userId?: string | null): Promise
   }
 }
 
-// Update specific metadata fields on a receipt
-export async function updateReceiptMetadata(
+/** Convert a receipt update into ChromaDB metadata (all values stored as strings). */
+function updateToChromaMetadata(updates: ReceiptUpdate): Record<string, string> {
+  const metadata: Record<string, string> = {};
+  if (updates.merchantName !== undefined) metadata.merchantName = updates.merchantName;
+  if (updates.date !== undefined) metadata.date = updates.date;
+  if (updates.total !== undefined) metadata.total = updates.total.toString();
+  if (updates.paymentMethod !== undefined) metadata.paymentMethod = updates.paymentMethod;
+  return metadata;
+}
+
+/**
+ * Update editable receipt fields.
+ * Returns false when the receipt does not exist (or belongs to another user).
+ */
+export async function updateReceipt(
   id: string,
-  metadata: Record<string, string | number>
+  updates: ReceiptUpdate,
+  userId?: string | null,
 ): Promise<boolean> {
-  const client = getChromaClient();
-  try {
-    const collection = await getReceiptsCollection(client);
-    await collection.update({ ids: [id], metadatas: [metadata] });
+  const metadata = updateToChromaMetadata(updates);
+
+  if (PG_ENABLED) {
+    const updated = await updateReceiptPg(id, updates, userId ?? null);
+    if (!updated) return false;
+    // ChromaDB: best-effort mirror so search results show the edited values
+    try {
+      const client = getChromaClient();
+      const collection = await getReceiptsCollection(client);
+      await collection.update({ ids: [id], metadatas: [metadata] });
+    } catch (e) {
+      console.warn('ChromaDB update failed (non-fatal):', e);
+    }
     return true;
-  } catch (error) {
-    console.error('Error updating receipt:', error);
-    return false;
   }
+
+  const client = getChromaClient();
+  const collection = await getReceiptsCollection(client);
+  const existing = await collection.get({ ids: [id] });
+  if (!existing.ids?.length) return false;
+  await collection.update({ ids: [id], metadatas: [metadata] });
+  return true;
 }
 
 // ============= BANK TRANSACTIONS =============
