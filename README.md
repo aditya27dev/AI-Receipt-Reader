@@ -74,7 +74,7 @@ When `DATABASE_URL` is not set, the app runs in ChromaDB-only mode: no auth, and
 
 | Capability                      | Implementation                                                                                                   |
 | :------------------------------ | :--------------------------------------------------------------------------------------------------------------- |
-| **Vision Receipt Extraction**   | Multimodal extraction (OpenAI GPT-5.4 mini / Anthropic Claude Sonnet 4.6) validated against Zod schemas          |
+| **Vision Receipt Extraction**   | Multimodal extraction (OpenAI GPT-6 Luna / Anthropic Claude Sonnet 4.6) validated against Zod schemas          |
 | **PDF Statement Parsing**       | Text extracted with unpdf, then transactions and categories extracted by the LLM                                 |
 | **Receipt Reconciliation**      | Fuzzy matching of receipts to bank transactions, scored on amount, date proximity, and merchant name similarity  |
 | **Duplicate Detection**         | Client-side SHA-256 image hashing checked before the model is called                                             |
@@ -90,7 +90,7 @@ When `DATABASE_URL` is not set, the app runs in ChromaDB-only mode: no auth, and
 ## Technical Specifications
 
 - **Frontend:** Next.js 16 (App Router, Route Handlers), React 19, Tailwind CSS 3, Recharts, Framer Motion, Lucide Icons
-- **AI & Embeddings:** Vercel AI SDK (v6), Anthropic Claude Sonnet 4.6, OpenAI GPT-5.4 mini, OpenAI text-embedding-3-small
+- **AI & Embeddings:** Vercel AI SDK (v6), Anthropic Claude Sonnet 4.6, OpenAI GPT-6 Luna, OpenAI text-embedding-3-small
 - **Backend & API:** Node.js runtime, Next.js Route Handlers, unpdf, Zod 4
 - **Persistence & Storage:** PostgreSQL 16, Drizzle ORM, ChromaDB (vector store), Docker Compose
 - **Security & Auth:** Better Auth (session cookies), Upstash Redis (sliding-window rate limiting)
